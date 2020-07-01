@@ -347,6 +347,9 @@ Video.propTypes = {
   filterEnabled: PropTypes.bool,
   /* Native only */
   src: PropTypes.object,
+  drm: PropTypes.shape({
+    token: PropTypes.string,
+  }),
   seek: PropTypes.oneOfType([
     PropTypes.number,
     PropTypes.object

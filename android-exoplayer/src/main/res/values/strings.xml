@@ -11,4 +11,8 @@
 
   <string name="unrecognized_media_format">Unrecognized media format</string>
 
+  <string name="error_drm_unsupported_scheme">Unsupported DRM scheme</string>
+
+  <string name="error_drm_unknown">Unsupported DRM type</string>
+
 </resources>

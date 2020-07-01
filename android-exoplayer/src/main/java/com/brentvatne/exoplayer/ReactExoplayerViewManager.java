@@ -26,6 +26,8 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_SRC = "src";
     private static final String PROP_SRC_URI = "uri";
     private static final String PROP_SRC_TYPE = "type";
+    private static final String PROP_DRM = "drm";
+    private static final String PROP_DRM_TOKEN = "token";
     private static final String PROP_SRC_HEADERS = "requestHeaders";
     private static final String PROP_RESIZE_MODE = "resizeMode";
     private static final String PROP_REPEAT = "repeat";
@@ -132,6 +134,16 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
                 }
             }
         }
+    }
+
+    @ReactProp(name = PROP_DRM)
+    public void setDrm(final ReactExoplayerView videoView, @Nullable ReadableMap drmConfig) {
+        if (drmConfig == null) {
+            return;
+        }
+
+        String token = drmConfig.hasKey(PROP_DRM_TOKEN) ? drmConfig.getString(PROP_DRM_TOKEN) : null;
+        videoView.setDrmToken(token);
     }
 
     @ReactProp(name = PROP_RESIZE_MODE)
