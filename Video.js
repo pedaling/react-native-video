@@ -74,7 +74,7 @@ export default class Video extends Component {
     this.setNativeProps({ fullscreen: false });
   };
 
-  save = async (options?) => {
+  save = async (options) => {
     return await NativeModules.VideoManager.save(options, findNodeHandle(this._root));
   }
 
@@ -349,6 +349,7 @@ Video.propTypes = {
   src: PropTypes.object,
   drm: PropTypes.shape({
     token: PropTypes.string,
+    siteId: PropTypes.string,
   }),
   seek: PropTypes.oneOfType([
     PropTypes.number,

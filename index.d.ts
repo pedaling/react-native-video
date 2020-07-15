@@ -96,7 +96,8 @@ export interface VideoProperties extends ViewProps {
   /* Native only */
   src?: any;
   drm?: {
-    token: string;
+    token?: string;
+    siteId?: string;
   };
   seek?: number;
   fullscreen?: boolean;
