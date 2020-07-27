@@ -14,9 +14,8 @@ static NSString *const playbackRate = @"rate";
 static NSString *const timedMetadata = @"timedMetadata";
 static NSString *const externalPlaybackActive = @"externalPlaybackActive";
 
-static NSString *const drmTokenKey = @"pallycon-customdata-v2";
-static NSString *const drmLicenseServerUrl = @"https://license.pallycon.com/ri/licenseManager.do";
-static NSString *const drmFpsCertificationUrl = @"https://license.pallycon.com/ri/fpsKeyManager.do?siteId=";
+static NSString *const drmUserTokenKey = @"userToken";
+static NSString *const drmContentIdKey = @"contentId";
 
 static int const RCTVideoUnset = -1;
 
@@ -1662,23 +1661,25 @@ static int const RCTVideoUnset = -1;
     return NO;
   }
 
-  NSString *token = [_drm objectForKey:@"token"];
-  NSString *siteId = [_drm objectForKey:@"siteId"];
-  NSString *contentId = loadingRequest.request.URL.host;
-  NSURL *certificateURL = [NSURL URLWithString:[drmFpsCertificationUrl stringByAppendingString: siteId]];
+  NSString *userToken = [_drm objectForKey:@"userToken"];
+  NSString *contentId = [_drm objectForKey:@"contentId"];
+  NSString *licenseServerUrl = [_drm objectForKey:@"licenseServerUrl"];
+  NSString *certificationUrl = [_drm objectForKey:@"certificationUrl"];
+  NSString *spcContentId = loadingRequest.request.URL.host;
+  NSURL *fpsCertificationUrl = [NSURL URLWithString:certificationUrl];
 
-  if (certificateURL == nil || token == nil || siteId == nil || contentId == nil) {
+  if (userToken == nil || contentId == nil || licenseServerUrl == nil || certificationUrl == nil || fpsCertificationUrl == nil) {
     NSError *error = [NSError errorWithDomain: @"RCTVideo"
                                          code: -2
                                      userInfo: @{
                                        NSLocalizedDescriptionKey: @"Error obtaining DRM license.",
-                                       NSLocalizedFailureReasonErrorKey: @"token or siteId not found.",
-                                       NSLocalizedRecoverySuggestionErrorKey: @"Have you specified the 'drm.token' or 'drm.siteId' prop?"}];
+                                       NSLocalizedFailureReasonErrorKey: @"drm content missing.",
+                                       NSLocalizedRecoverySuggestionErrorKey: @"Have you specified the 'drm.userToken', 'drm.contentId', 'drm.licenseServerUrl', or 'drm.fpsCertificationUrl' prop?"}];
     [self finishLoading:loadingRequest withError:error];
     return NO;
   }
 
-  NSData *base64CertificateData = [NSData dataWithContentsOfURL:certificateURL];
+  NSData *base64CertificateData = [NSData dataWithContentsOfURL:fpsCertificationUrl];
   NSData *certificateData = [[NSData alloc] initWithBase64EncodedData:base64CertificateData options:NSDataBase64DecodingIgnoreUnknownCharacters];
 
   if (certificateData == nil) {
@@ -1692,7 +1693,7 @@ static int const RCTVideoUnset = -1;
     return NO;
   }
 
-  NSData *contentIdData = [contentId dataUsingEncoding: NSUTF8StringEncoding];
+  NSData *spcContentIdData = [spcContentId dataUsingEncoding: NSUTF8StringEncoding];
   AVAssetResourceLoadingDataRequest *dataRequest = [loadingRequest dataRequest];
 
   if (dataRequest == nil) {
@@ -1707,21 +1708,22 @@ static int const RCTVideoUnset = -1;
   }
 
   NSError *spcError = nil;
-  NSData *spcData = [loadingRequest streamingContentKeyRequestDataForApp:certificateData contentIdentifier:contentIdData options:nil error:&spcError];
+  NSData *spcData = [loadingRequest streamingContentKeyRequestDataForApp:certificateData contentIdentifier:spcContentIdData options:nil error:&spcError];
 
   if (spcError != nil || spcData == nil) {
     [self finishLoading:loadingRequest withError:spcError];
     return NO;
   }
 
-  NSString *postBody = [NSString stringWithFormat:@"spc=%@", [spcData base64EncodedStringWithOptions:0]];
+  NSString *postBody = [spcData base64EncodedStringWithOptions:0];
   NSData *postData = [postBody dataUsingEncoding:NSASCIIStringEncoding allowLossyConversion:YES];
 
   NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
   [request setHTTPMethod:@"POST"];
-  [request setURL:[NSURL URLWithString:drmLicenseServerUrl]];
-  [request setValue:token forHTTPHeaderField:drmTokenKey];
-  [request setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
+  [request setURL:[NSURL URLWithString:licenseServerUrl]];
+  [request setValue:userToken forHTTPHeaderField:drmUserTokenKey];
+  [request setValue:contentId forHTTPHeaderField:drmContentIdKey];
+  [request setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
   [request setHTTPBody:postData];
 
   NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];

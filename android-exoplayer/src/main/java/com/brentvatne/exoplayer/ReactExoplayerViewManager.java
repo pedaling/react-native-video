@@ -27,7 +27,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_SRC_URI = "uri";
     private static final String PROP_SRC_TYPE = "type";
     private static final String PROP_DRM = "drm";
-    private static final String PROP_DRM_TOKEN = "token";
+    private static final String PROP_DRM_LICENSE_SERVER_URL = "licenseServerUrl";
+    private static final String PROP_DRM_USER_TOKEN = "userToken";
+    private static final String PROP_DRM_CONTENT_ID = "contentId";
     private static final String PROP_SRC_HEADERS = "requestHeaders";
     private static final String PROP_RESIZE_MODE = "resizeMode";
     private static final String PROP_REPEAT = "repeat";
@@ -142,8 +144,13 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
             return;
         }
 
-        String token = drmConfig.hasKey(PROP_DRM_TOKEN) ? drmConfig.getString(PROP_DRM_TOKEN) : null;
-        videoView.setDrmToken(token);
+        String licenseServerUrl = drmConfig.hasKey(PROP_DRM_LICENSE_SERVER_URL) ? drmConfig.getString(PROP_DRM_LICENSE_SERVER_URL) : null;
+        String userToken = drmConfig.hasKey(PROP_DRM_USER_TOKEN) ? drmConfig.getString(PROP_DRM_USER_TOKEN) : null;
+        String contentId = drmConfig.hasKey(PROP_DRM_CONTENT_ID) ? drmConfig.getString(PROP_DRM_CONTENT_ID) : null;
+
+        videoView.setDrmLicenseServerUrl(licenseServerUrl);
+        videoView.setDrmUserToken(userToken);
+        videoView.setDrmContentId(contentId);
     }
 
     @ReactProp(name = PROP_RESIZE_MODE)

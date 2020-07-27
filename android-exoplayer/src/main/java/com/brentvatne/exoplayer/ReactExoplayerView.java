@@ -96,8 +96,8 @@ class ReactExoplayerView extends FrameLayout implements
 
     private static final DefaultBandwidthMeter BANDWIDTH_METER = new DefaultBandwidthMeter();
     private static final CookieManager DEFAULT_COOKIE_MANAGER;
-    private static final String DRM_LICENSE_SERVER = "https://license.pallycon.com/ri/licenseManager.do";
-    private static final String DRM_TOKEN_KEY = "pallycon-customdata-v2";
+    private static final String DRM_USER_TOKEN_KEY = "userToken";
+    private static final String DRM_CONTENT_ID_KEY = "contentId";
     private static final int SHOW_PROGRESS = 1;
     private static final int REPORT_BANDWIDTH = 1;
 
@@ -139,7 +139,9 @@ class ReactExoplayerView extends FrameLayout implements
 
     // Props from React
     private Uri srcUri;
-    private String drmToken;
+    private String drmLicenseServerUrl;
+    private String drmUserToken;
+    private String drmContentId;
     private String extension;
     private boolean repeat;
     private String audioTrackType;
@@ -365,11 +367,14 @@ class ReactExoplayerView extends FrameLayout implements
                     DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(getContext(), DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF);
                     DrmSessionManager<FrameworkMediaCrypto> drmSessionManager = null;
 
-                    if (self.drmToken != null) {
+                    if (self.drmLicenseServerUrl != null && self.drmUserToken != null && self.drmContentId != null) {
                       try {
                         drmSessionManager = buildDrmSessionManager(
-                          DRM_LICENSE_SERVER,
-                          new String[] { DRM_TOKEN_KEY, self.drmToken }
+                          self.drmLicenseServerUrl,
+                          new String[] {
+                            DRM_USER_TOKEN_KEY, self.drmUserToken,
+                            DRM_CONTENT_ID_KEY, self.drmContentId,
+                          }
                         );
                       } catch (UnsupportedDrmException e) {
                         int errorStringId = e.reason == UnsupportedDrmException.REASON_UNSUPPORTED_SCHEME ?
@@ -1231,8 +1236,16 @@ class ReactExoplayerView extends FrameLayout implements
         initializePlayer();
     }
 
-    public void setDrmToken(String drmToken) {
-      this.drmToken = drmToken;
+    public void setDrmLicenseServerUrl(String drmLicenseServerUrl) {
+        this.drmLicenseServerUrl = drmLicenseServerUrl;
+    }
+
+    public void setDrmUserToken(String drmUserToken) {
+        this.drmUserToken = drmUserToken;
+    }
+
+    public void setDrmContentId(String drmContentId) {
+        this.drmContentId = drmContentId;
     }
 
     @Override
