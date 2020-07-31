@@ -98,7 +98,7 @@ export interface VideoProperties extends ViewProps {
   drm?: {
     licenseServerUrl: string;
     certificateUrl?: string;
-    userToken: string;
+    userAuthToken: string;
     contentId: string;
   };
   seek?: number;

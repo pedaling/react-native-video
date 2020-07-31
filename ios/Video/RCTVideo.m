@@ -14,7 +14,7 @@ static NSString *const playbackRate = @"rate";
 static NSString *const timedMetadata = @"timedMetadata";
 static NSString *const externalPlaybackActive = @"externalPlaybackActive";
 
-static NSString *const drmUserTokenKey = @"userToken";
+static NSString *const drmUserAuthTokenKey = @"userAuthToken";
 static NSString *const drmContentIdKey = @"contentId";
 
 static int const RCTVideoUnset = -1;
@@ -1661,20 +1661,19 @@ static int const RCTVideoUnset = -1;
     return NO;
   }
 
-  NSString *userToken = [_drm objectForKey:@"userToken"];
+  NSString *userAuthToken = [_drm objectForKey:@"userAuthToken"];
   NSString *contentId = [_drm objectForKey:@"contentId"];
   NSString *licenseServerUrl = [_drm objectForKey:@"licenseServerUrl"];
   NSString *certificateUrl = [_drm objectForKey:@"certificateUrl"];
-  NSString *spcContentId = loadingRequest.request.URL.host;
   NSURL *fpsCertificateUrl = [NSURL URLWithString:certificateUrl];
 
-  if (userToken == nil || contentId == nil || licenseServerUrl == nil || certificateUrl == nil || fpsCertificateUrl == nil) {
+  if (userAuthToken == nil || contentId == nil || licenseServerUrl == nil || certificateUrl == nil || fpsCertificateUrl == nil) {
     NSError *error = [NSError errorWithDomain: @"RCTVideo"
                                          code: -2
                                      userInfo: @{
                                        NSLocalizedDescriptionKey: @"Error obtaining DRM license.",
                                        NSLocalizedFailureReasonErrorKey: @"drm content missing.",
-                                       NSLocalizedRecoverySuggestionErrorKey: @"Have you specified the 'drm.userToken', 'drm.contentId', 'drm.licenseServerUrl', or 'drm.certificateUrl' prop?"}];
+                                       NSLocalizedRecoverySuggestionErrorKey: @"Have you specified the 'drm.userAuthToken', 'drm.contentId', 'drm.licenseServerUrl', or 'drm.certificateUrl' prop?"}];
     [self finishLoading:loadingRequest withError:error];
     return NO;
   }
@@ -1693,7 +1692,7 @@ static int const RCTVideoUnset = -1;
     return NO;
   }
 
-  NSData *spcContentIdData = [spcContentId dataUsingEncoding: NSUTF8StringEncoding];
+  NSData *contentIdData = [contentId dataUsingEncoding: NSUTF8StringEncoding];
   AVAssetResourceLoadingDataRequest *dataRequest = [loadingRequest dataRequest];
 
   if (dataRequest == nil) {
@@ -1708,7 +1707,7 @@ static int const RCTVideoUnset = -1;
   }
 
   NSError *spcError = nil;
-  NSData *spcData = [loadingRequest streamingContentKeyRequestDataForApp:certificateData contentIdentifier:spcContentIdData options:nil error:&spcError];
+  NSData *spcData = [loadingRequest streamingContentKeyRequestDataForApp:certificateData contentIdentifier:contentIdData options:nil error:&spcError];
 
   if (spcError != nil || spcData == nil) {
     [self finishLoading:loadingRequest withError:spcError];
@@ -1721,7 +1720,7 @@ static int const RCTVideoUnset = -1;
   NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
   [request setHTTPMethod:@"POST"];
   [request setURL:[NSURL URLWithString:licenseServerUrl]];
-  [request setValue:userToken forHTTPHeaderField:drmUserTokenKey];
+  [request setValue:userAuthToken forHTTPHeaderField:drmUserAuthTokenKey];
   [request setValue:contentId forHTTPHeaderField:drmContentIdKey];
   [request setValue:@"text/plain" forHTTPHeaderField:@"Content-Type"];
   [request setHTTPBody:postData];

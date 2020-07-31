@@ -96,7 +96,7 @@ class ReactExoplayerView extends FrameLayout implements
 
     private static final DefaultBandwidthMeter BANDWIDTH_METER = new DefaultBandwidthMeter();
     private static final CookieManager DEFAULT_COOKIE_MANAGER;
-    private static final String DRM_USER_TOKEN_KEY = "userToken";
+    private static final String DRM_USER_TOKEN_KEY = "userAuthToken";
     private static final String DRM_CONTENT_ID_KEY = "contentId";
     private static final int SHOW_PROGRESS = 1;
     private static final int REPORT_BANDWIDTH = 1;
@@ -140,7 +140,7 @@ class ReactExoplayerView extends FrameLayout implements
     // Props from React
     private Uri srcUri;
     private String drmLicenseServerUrl;
-    private String drmUserToken;
+    private String drmUserAuthToken;
     private String drmContentId;
     private String extension;
     private boolean repeat;
@@ -367,12 +367,12 @@ class ReactExoplayerView extends FrameLayout implements
                     DefaultRenderersFactory renderersFactory = new DefaultRenderersFactory(getContext(), DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF);
                     DrmSessionManager<FrameworkMediaCrypto> drmSessionManager = null;
 
-                    if (self.drmLicenseServerUrl != null && self.drmUserToken != null && self.drmContentId != null) {
+                    if (self.drmLicenseServerUrl != null && self.drmUserAuthToken != null && self.drmContentId != null) {
                       try {
                         drmSessionManager = buildDrmSessionManager(
                           self.drmLicenseServerUrl,
                           new String[] {
-                            DRM_USER_TOKEN_KEY, self.drmUserToken,
+                            DRM_USER_TOKEN_KEY, self.drmUserAuthToken,
                             DRM_CONTENT_ID_KEY, self.drmContentId,
                           }
                         );
@@ -1240,8 +1240,8 @@ class ReactExoplayerView extends FrameLayout implements
         this.drmLicenseServerUrl = drmLicenseServerUrl;
     }
 
-    public void setDrmUserToken(String drmUserToken) {
-        this.drmUserToken = drmUserToken;
+    public void setDrmUserAuthToken(String drmUserAuthToken) {
+        this.drmUserAuthToken = drmUserAuthToken;
     }
 
     public void setDrmContentId(String drmContentId) {

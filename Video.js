@@ -350,7 +350,7 @@ Video.propTypes = {
   drm: PropTypes.shape({
     licenseServerUrl: PropTypes.string.isRequired,
     certificateUrl: PropTypes.string.isRequired,
-    userToken: PropTypes.string,
+    userAuthToken: PropTypes.string,
     contentId: PropTypes.string.isRequired,
   }),
   seek: PropTypes.oneOfType([
