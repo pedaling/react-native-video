@@ -1664,22 +1664,22 @@ static int const RCTVideoUnset = -1;
   NSString *userToken = [_drm objectForKey:@"userToken"];
   NSString *contentId = [_drm objectForKey:@"contentId"];
   NSString *licenseServerUrl = [_drm objectForKey:@"licenseServerUrl"];
-  NSString *certificationUrl = [_drm objectForKey:@"certificationUrl"];
+  NSString *certificateUrl = [_drm objectForKey:@"certificateUrl"];
   NSString *spcContentId = loadingRequest.request.URL.host;
-  NSURL *fpsCertificationUrl = [NSURL URLWithString:certificationUrl];
+  NSURL *fpsCertificateUrl = [NSURL URLWithString:certificateUrl];
 
-  if (userToken == nil || contentId == nil || licenseServerUrl == nil || certificationUrl == nil || fpsCertificationUrl == nil) {
+  if (userToken == nil || contentId == nil || licenseServerUrl == nil || certificateUrl == nil || fpsCertificateUrl == nil) {
     NSError *error = [NSError errorWithDomain: @"RCTVideo"
                                          code: -2
                                      userInfo: @{
                                        NSLocalizedDescriptionKey: @"Error obtaining DRM license.",
                                        NSLocalizedFailureReasonErrorKey: @"drm content missing.",
-                                       NSLocalizedRecoverySuggestionErrorKey: @"Have you specified the 'drm.userToken', 'drm.contentId', 'drm.licenseServerUrl', or 'drm.fpsCertificationUrl' prop?"}];
+                                       NSLocalizedRecoverySuggestionErrorKey: @"Have you specified the 'drm.userToken', 'drm.contentId', 'drm.licenseServerUrl', or 'drm.certificateUrl' prop?"}];
     [self finishLoading:loadingRequest withError:error];
     return NO;
   }
 
-  NSData *base64CertificateData = [NSData dataWithContentsOfURL:fpsCertificationUrl];
+  NSData *base64CertificateData = [NSData dataWithContentsOfURL:fpsCertificateUrl];
   NSData *certificateData = [[NSData alloc] initWithBase64EncodedData:base64CertificateData options:NSDataBase64DecodingIgnoreUnknownCharacters];
 
   if (certificateData == nil) {

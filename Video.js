@@ -348,8 +348,10 @@ Video.propTypes = {
   /* Native only */
   src: PropTypes.object,
   drm: PropTypes.shape({
-    token: PropTypes.string,
-    siteId: PropTypes.string,
+    licenseServerUrl: PropTypes.string.isRequired,
+    certificateUrl: PropTypes.string.isRequired,
+    userToken: PropTypes.string,
+    contentId: PropTypes.string.isRequired,
   }),
   seek: PropTypes.oneOfType([
     PropTypes.number,

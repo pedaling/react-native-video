@@ -96,10 +96,10 @@ export interface VideoProperties extends ViewProps {
   /* Native only */
   src?: any;
   drm?: {
+    licenseServerUrl: string;
+    certificateUrl?: string;
     userToken: string;
     contentId: string;
-    licenseServerUrl: string;
-    certificationUrl?: string;
   };
   seek?: number;
   fullscreen?: boolean;
