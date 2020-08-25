@@ -858,7 +858,7 @@ static int const RCTVideoUnset = -1;
   } else if (_pipController && !_pictureInPicture && [_pipController isPictureInPictureActive]) {
     dispatch_async(dispatch_get_main_queue(), ^{
       [self->_pipController stopPictureInPicture];
-	});
+	  });
   }
   #endif
 }
@@ -1692,7 +1692,8 @@ static int const RCTVideoUnset = -1;
     return NO;
   }
 
-  NSData *contentIdData = [contentId dataUsingEncoding: NSUTF8StringEncoding];
+  NSString *spcContentId = [loadingRequest.request.URL.absoluteString stringByReplacingOccurrencesOfString:@"skd://" withString:@""];
+  NSData *spcContentIdData = [spcContentId dataUsingEncoding: NSUTF8StringEncoding];
   AVAssetResourceLoadingDataRequest *dataRequest = [loadingRequest dataRequest];
 
   if (dataRequest == nil) {
@@ -1707,7 +1708,7 @@ static int const RCTVideoUnset = -1;
   }
 
   NSError *spcError = nil;
-  NSData *spcData = [loadingRequest streamingContentKeyRequestDataForApp:certificateData contentIdentifier:contentIdData options:nil error:&spcError];
+  NSData *spcData = [loadingRequest streamingContentKeyRequestDataForApp:certificateData contentIdentifier:spcContentIdData options:nil error:&spcError];
 
   if (spcError != nil || spcData == nil) {
     [self finishLoading:loadingRequest withError:spcError];
