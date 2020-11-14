@@ -25,6 +25,7 @@
 @property (nonatomic, copy) RCTDirectEventBlock onVideoLoad;
 @property (nonatomic, copy) RCTDirectEventBlock onVideoBuffer;
 @property (nonatomic, copy) RCTDirectEventBlock onVideoError;
+@property (nonatomic, copy) RCTDirectEventBlock onVideoStateChanged;
 @property (nonatomic, copy) RCTDirectEventBlock onVideoProgress;
 @property (nonatomic, copy) RCTDirectEventBlock onBandwidthUpdate;
 @property (nonatomic, copy) RCTDirectEventBlock onVideoSeek;
@@ -42,6 +43,8 @@
 @property (nonatomic, copy) RCTDirectEventBlock onVideoExternalPlaybackChange;
 @property (nonatomic, copy) RCTDirectEventBlock onPictureInPictureStatusChanged;
 @property (nonatomic, copy) RCTDirectEventBlock onRestoreUserInterfaceForPictureInPictureStop;
+@property (nonatomic, copy) RCTDirectEventBlock onPressPrevious;
+@property (nonatomic, copy) RCTDirectEventBlock onPressNext;
 
 - (instancetype)initWithEventDispatcher:(RCTEventDispatcher *)eventDispatcher NS_DESIGNATED_INITIALIZER;
 

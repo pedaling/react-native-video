@@ -19,6 +19,7 @@ RCT_EXPORT_MODULE();
 }
 
 RCT_EXPORT_VIEW_PROPERTY(src, NSDictionary);
+RCT_EXPORT_VIEW_PROPERTY(mediaInfo, NSDictionary);
 RCT_EXPORT_VIEW_PROPERTY(drm, NSDictionary);
 RCT_EXPORT_VIEW_PROPERTY(maxBitRate, float);
 RCT_EXPORT_VIEW_PROPERTY(resizeMode, NSString);
@@ -50,6 +51,7 @@ RCT_EXPORT_VIEW_PROPERTY(onVideoLoadStart, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoLoad, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoBuffer, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoError, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onVideoStateChanged, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoProgress, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onBandwidthUpdate, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoSeek, RCTDirectEventBlock);
@@ -65,6 +67,8 @@ RCT_EXPORT_VIEW_PROPERTY(onPlaybackStalled, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onPlaybackResume, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onPlaybackRateChange, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onVideoExternalPlaybackChange, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onPressPrevious, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onPressNext, RCTDirectEventBlock);
 RCT_REMAP_METHOD(save,
         options:(NSDictionary *)options
         reactTag:(nonnull NSNumber *)reactTag

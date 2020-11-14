@@ -101,6 +101,10 @@ export interface VideoProperties extends ViewProps {
     userAuthToken: string;
     contentId: string;
   };
+  mediaInfo?: {
+    title?: string;
+    artist?: string;
+  };
   seek?: number;
   fullscreen?: boolean;
   fullscreenOrientation?: "all" | "landscape" | "portrait";
@@ -109,6 +113,7 @@ export interface VideoProperties extends ViewProps {
   onVideoLoad?(): void;
   onVideoBuffer?(): void;
   onVideoError?(): void;
+  onVideoStateChanged?(): void;
   onVideoProgress?(): void;
   onVideoSeek?(): void;
   onVideoEnd?(): void;
@@ -117,6 +122,8 @@ export interface VideoProperties extends ViewProps {
   onVideoFullscreenPlayerDidPresent?(): void;
   onVideoFullscreenPlayerWillDismiss?(): void;
   onVideoFullscreenPlayerDidDismiss?(): void;
+  onPressPrevious?(): void;
+  onPressNext?(): void;
 
   /* Wrapper component */
   // Opaque type returned by require('./video.mp4')
@@ -157,6 +164,7 @@ export interface VideoProperties extends ViewProps {
   onLoad?(data: OnLoadData): void;
   onBuffer?(data: OnBufferData): void;
   onError?(error: LoadError): void;
+  onStateChanged?(state: { isPaused: boolean }): void;
   onProgress?(data: OnProgressData): void;
   onBandwidthUpdate?(data: OnBandwidthUpdateData): void;
   onSeek?(data: OnSeekData): void;
