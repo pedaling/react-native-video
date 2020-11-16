@@ -946,7 +946,7 @@ class ReactExoplayerView extends FrameLayout implements
         }
     }
 
-    public void setMediaInfo(String title, String artist) {
+    public void setMediaInfo(String title, String artist, String channelName) {
         exoPlayerNotificationManager = new ExoPlayerNotificationManager(getContext(), title, artist, channelName);
         exoPlayerNotificationManager.setPlayer(player);
     }
