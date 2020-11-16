@@ -3,6 +3,9 @@
 #import <React/RCTBridgeModule.h>
 #import <React/RCTEventDispatcher.h>
 #import <React/UIView+React.h>
+#import <MediaPlayer/MPNowPlayingInfoCenter.h>
+#import <MediaPlayer/MPMediaItem.h>
+#import <MediaPlayer/MediaPlayer.h>
 #include <MediaAccessibility/MediaAccessibility.h>
 #include <AVFoundation/AVFoundation.h>
 
@@ -212,6 +215,7 @@ static int const RCTVideoUnset = -1;
 - (void)dealloc
 {
   [[NSNotificationCenter defaultCenter] removeObserver:self];
+  [self disposeMediaPlayer];
   [self removePlayerLayer];
   [self removePlayerItemObservers];
   [_player removeObserver:self forKeyPath:playbackRate context:nil];
@@ -277,7 +281,20 @@ static int const RCTVideoUnset = -1;
   
   [[NSNotificationCenter defaultCenter] postNotificationName:@"RCTVideo_progress" object:nil userInfo:@{@"progress": [NSNumber numberWithDouble: currentTimeSecs / duration]}];
   
-  if( currentTimeSecs >= 0 && self.onVideoProgress) {
+  if (currentTimeSecs >= 0 && self.onVideoProgress) {
+    MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
+    NSDictionary *nowPlayingInfo = [center nowPlayingInfo];
+    NSMutableDictionary *nextPlayingInfo = [NSMutableDictionary dictionary];
+
+    if ([nowPlayingInfo objectForKey: @"title"] != nil) {
+      nextPlayingInfo[MPMediaItemPropertyTitle] = [nowPlayingInfo objectForKey: @"title"];
+      nextPlayingInfo[MPMediaItemPropertyArtist] = [nowPlayingInfo objectForKey: @"artist"];
+      nextPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithFloat: duration];
+      nextPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithFloat: currentTimeSecs];
+
+      [center setNowPlayingInfo: nextPlayingInfo];
+    }
+
     self.onVideoProgress(@{
                            @"currentTime": [NSNumber numberWithFloat:CMTimeGetSeconds(currentTime)],
                            @"playableDuration": [self calculatePlayableDuration],
@@ -401,6 +418,81 @@ static int const RCTVideoUnset = -1;
     }];
   });
   _videoLoadStarted = YES;
+}
+
+- (MPRemoteCommandHandlerStatus)play {
+  [self setPaused: false];
+
+  if (self.onVideoStateChanged) {
+    self.onVideoStateChanged(@{ @"isPaused": @NO });
+  }
+
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)pause {
+  [self setPaused: true];
+
+  if (self.onVideoStateChanged) {
+    self.onVideoStateChanged(@{ @"isPaused": @YES });
+  }
+
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)handlePressPrevious {
+  if (self.onPressPrevious) {
+    self.onPressPrevious(@{});
+  }
+
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (MPRemoteCommandHandlerStatus)handlePressNext {
+  if (self.onPressNext) {
+    self.onPressNext(@{});
+  }
+
+  return MPRemoteCommandHandlerStatusSuccess;
+}
+
+- (void)setMediaInfo:(NSDictionary *) info {
+  [self initRemoteCommandCenter];
+
+  MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
+  NSMutableDictionary *nextPlayingInfo = [NSMutableDictionary dictionary];
+
+  if (@available(iOS 13.0, *)) {
+    center.playbackState = MPNowPlayingPlaybackStatePlaying;
+  }
+
+  nextPlayingInfo[MPMediaItemPropertyTitle] = [info objectForKey: @"title"];
+  nextPlayingInfo[MPMediaItemPropertyArtist] = [info objectForKey: @"artist"];
+
+  [center setNowPlayingInfo: nextPlayingInfo];
+
+  [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+  [self becomeFirstResponder];
+}
+
+- (void)disposeMediaPlayer {
+  MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
+
+  [center setNowPlayingInfo: nil];
+  if (@available(iOS 13.0, *)) {
+    center.playbackState = MPNowPlayingPlaybackStateStopped;
+  }
+  [[UIApplication sharedApplication] endReceivingRemoteControlEvents];
+  [self resignFirstResponder];
+}
+
+- (void)initRemoteCommandCenter {
+  MPRemoteCommandCenter *remoteCommandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+
+  [remoteCommandCenter.previousTrackCommand addTarget:self action:@selector(handlePressPrevious)];
+  [remoteCommandCenter.nextTrackCommand addTarget:self action:@selector(handlePressNext)];
+  [remoteCommandCenter.playCommand addTarget:self action:@selector(play)];
+  [remoteCommandCenter.pauseCommand addTarget:self action:@selector(pause)];
 }
 
 - (void)setDrm:(NSDictionary *)drm {
@@ -901,7 +993,7 @@ static int const RCTVideoUnset = -1;
     [_player play];
     [_player setRate:_rate];
   }
-  
+
   _paused = paused;
 }
 
@@ -1536,9 +1628,10 @@ static int const RCTVideoUnset = -1;
     _isExternalPlaybackActiveObserverRegistered = NO;
   }
   _player = nil;
-  
+
   [self removePlayerLayer];
-  
+  [self disposeMediaPlayer];
+
   [_playerViewController.contentOverlayView removeObserver:self forKeyPath:@"frame"];
   [_playerViewController removeObserver:self forKeyPath:readyForDisplayKeyPath];
   [_playerViewController.view removeFromSuperview];
@@ -1803,7 +1896,6 @@ static int const RCTVideoUnset = -1;
 }
 
 - (void)pictureInPictureController:(AVPictureInPictureController *)pictureInPictureController restoreUserInterfaceForPictureInPictureStopWithCompletionHandler:(void (^)(BOOL))completionHandler {
-  NSAssert(_restoreUserInterfaceForPIPStopCompletionHandler == NULL, @"restoreUserInterfaceForPIPStopCompletionHandler was not called after picture in picture was exited.");
   if (self.onRestoreUserInterfaceForPictureInPictureStop) {
     self.onRestoreUserInterfaceForPictureInPictureStop(@{});
   }

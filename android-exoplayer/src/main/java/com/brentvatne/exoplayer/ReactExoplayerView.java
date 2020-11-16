@@ -113,6 +113,7 @@ class ReactExoplayerView extends FrameLayout implements
 
     private Handler mainHandler;
     private ExoPlayerView exoPlayerView;
+    private ExoPlayerNotificationManager exoPlayerNotificationManager;
 
     private DataSource.Factory mediaDataSourceFactory;
     private SimpleExoPlayer player;
@@ -389,6 +390,9 @@ class ReactExoplayerView extends FrameLayout implements
                     player.addListener(self);
                     player.setMetadataOutput(self);
                     exoPlayerView.setPlayer(player);
+                    if (exoPlayerNotificationManager != null) {
+                        exoPlayerNotificationManager.setPlayer(player);
+                    }
                     audioBecomingNoisyReceiver.setListener(self);
                     BANDWIDTH_METER.addEventListener(new Handler(), self);
                     setPlayWhenReady(!isPaused);
@@ -489,6 +493,10 @@ class ReactExoplayerView extends FrameLayout implements
             player.setMetadataOutput(null);
             trackSelector = null;
             player = null;
+        }
+        if (exoPlayerNotificationManager != null) {
+            exoPlayerNotificationManager.setPlayer(null);
+            exoPlayerNotificationManager = null;
         }
         progressHandler.removeMessages(SHOW_PROGRESS);
         themedReactContext.removeLifecycleEventListener(this);
@@ -936,6 +944,11 @@ class ReactExoplayerView extends FrameLayout implements
                 reloadSource();
             }
         }
+    }
+
+    public void setMediaInfo(String title, String artist) {
+        exoPlayerNotificationManager = new ExoPlayerNotificationManager(getContext(), title, artist, channelName);
+        exoPlayerNotificationManager.setPlayer(player);
     }
 
     public void setProgressUpdateInterval(final float progressUpdateInterval) {

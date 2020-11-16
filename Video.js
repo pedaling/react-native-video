@@ -114,6 +114,12 @@ export default class Video extends Component {
     }
   };
 
+  _onStateChanged = (event) => {
+    if (this.props.onStateChange) {
+      this.props.onStateChange(event.nativeEvent);
+    }
+  };
+
   _onProgress = (event) => {
     if (this.props.onProgress) {
       this.props.onProgress(event.nativeEvent);
@@ -283,6 +289,7 @@ export default class Video extends Component {
       onVideoLoadStart: this._onLoadStart,
       onVideoLoad: this._onLoad,
       onVideoError: this._onError,
+      onVideoStateChanged: this._onStateChanged,
       onVideoProgress: this._onProgress,
       onVideoSeek: this._onSeek,
       onVideoEnd: this._onEnd,
@@ -353,6 +360,11 @@ Video.propTypes = {
     userAuthToken: PropTypes.string,
     contentId: PropTypes.string.isRequired,
   }),
+  mediaInfo: PropTypes.shape({
+    title: PropTypes.string,
+    artist: PropTypes.string,
+    channelName: PropTypes.string,
+  }),
   seek: PropTypes.oneOfType([
     PropTypes.number,
     PropTypes.object
@@ -362,6 +374,7 @@ Video.propTypes = {
   onVideoLoad: PropTypes.func,
   onVideoBuffer: PropTypes.func,
   onVideoError: PropTypes.func,
+  onVideoStateChanged: PropTypes.func,
   onVideoProgress: PropTypes.func,
   onVideoBandwidthUpdate: PropTypes.func,
   onVideoSeek: PropTypes.func,
@@ -373,6 +386,8 @@ Video.propTypes = {
   onVideoFullscreenPlayerDidPresent: PropTypes.func,
   onVideoFullscreenPlayerWillDismiss: PropTypes.func,
   onVideoFullscreenPlayerDidDismiss: PropTypes.func,
+  onPressPrevious: PropTypes.func,
+  onPressNext: PropTypes.func,
 
   /* Wrapper component */
   source: PropTypes.oneOfType([
@@ -451,6 +466,7 @@ Video.propTypes = {
   onLoad: PropTypes.func,
   onBuffer: PropTypes.func,
   onError: PropTypes.func,
+  onStateChanged: PropTypes.func,
   onProgress: PropTypes.func,
   onBandwidthUpdate: PropTypes.func,
   onSeek: PropTypes.func,
