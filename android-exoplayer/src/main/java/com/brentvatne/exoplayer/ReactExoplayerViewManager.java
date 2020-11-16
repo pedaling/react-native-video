@@ -29,6 +29,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_MEDIA_INFO = "mediaInfo";
     private static final String PROP_MEDIA_INFO_TITLE = "title";
     private static final String PROP_MEDIA_INFO_ARTIST = "artist";
+    private static final String PROP_MEDIA_INFO_CHANNEL_NAME = "channelName";
     private static final String PROP_DRM = "drm";
     private static final String PROP_DRM_LICENSE_SERVER_URL = "licenseServerUrl";
     private static final String PROP_DRM_USER_AUTH_TOKEN = "userAuthToken";
@@ -149,8 +150,9 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
       String title = mediaInfo.hasKey(PROP_MEDIA_INFO_TITLE) ? mediaInfo.getString(PROP_MEDIA_INFO_TITLE) : null;
       String artist = mediaInfo.hasKey(PROP_MEDIA_INFO_ARTIST) ? mediaInfo.getString(PROP_MEDIA_INFO_ARTIST) : null;
+      String channelName = mediaInfo.hasKey(PROP_MEDIA_INFO_CHANNEL_NAME) ? mediaInfo.getString(PROP_MEDIA_INFO_CHANNEL_NAME) : null;
 
-      videoView.setMediaInfo(title, artist);
+      videoView.setMediaInfo(title, artist, channelName);
     }
 
     @ReactProp(name = PROP_DRM)

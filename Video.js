@@ -363,6 +363,7 @@ Video.propTypes = {
   mediaInfo: PropTypes.shape({
     title: PropTypes.string,
     artist: PropTypes.string,
+    channelName: PropTypes.string,
   }),
   seek: PropTypes.oneOfType([
     PropTypes.number,
