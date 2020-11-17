@@ -495,8 +495,7 @@ class ReactExoplayerView extends FrameLayout implements
             player = null;
         }
         if (exoPlayerNotificationManager != null) {
-            exoPlayerNotificationManager.setPlayer(null);
-            exoPlayerNotificationManager = null;
+            this.clearMediaInfo();
         }
         progressHandler.removeMessages(SHOW_PROGRESS);
         themedReactContext.removeLifecycleEventListener(this);
@@ -949,6 +948,11 @@ class ReactExoplayerView extends FrameLayout implements
     public void setMediaInfo(String title, String artist, String channelName) {
         exoPlayerNotificationManager = new ExoPlayerNotificationManager(getContext(), title, artist, channelName);
         exoPlayerNotificationManager.setPlayer(player);
+    }
+
+    public void clearMediaInfo() {
+        exoPlayerNotificationManager.setPlayer(null);
+        exoPlayerNotificationManager = null;
     }
 
     public void setProgressUpdateInterval(final float progressUpdateInterval) {

@@ -145,6 +145,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     @ReactProp(name = PROP_MEDIA_INFO)
     public void setMediaInfo(final ReactExoplayerView videoView, @Nullable ReadableMap mediaInfo) {
       if (mediaInfo == null) {
+          videoView.clearMediaInfo();
         return;
       }
 
