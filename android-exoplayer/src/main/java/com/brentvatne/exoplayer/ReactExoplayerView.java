@@ -951,6 +951,9 @@ class ReactExoplayerView extends FrameLayout implements
     }
 
     public void clearMediaInfo() {
+        if (exoPlayerNotificationManager == null) {
+            return;
+        }
         exoPlayerNotificationManager.setPlayer(null);
         exoPlayerNotificationManager = null;
     }
