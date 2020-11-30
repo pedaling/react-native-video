@@ -30,6 +30,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_MEDIA_INFO_TITLE = "title";
     private static final String PROP_MEDIA_INFO_ARTIST = "artist";
     private static final String PROP_MEDIA_INFO_CHANNEL_NAME = "channelName";
+    private static final String PROP_MEDIA_INFO_ARTWORK = "artwork";
     private static final String PROP_DRM = "drm";
     private static final String PROP_DRM_LICENSE_SERVER_URL = "licenseServerUrl";
     private static final String PROP_DRM_USER_AUTH_TOKEN = "userAuthToken";
@@ -122,15 +123,15 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
             }
         } else {
             int identifier = context.getResources().getIdentifier(
-                uriString,
-                "drawable",
-                context.getPackageName()
+                    uriString,
+                    "drawable",
+                    context.getPackageName()
             );
             if (identifier == 0) {
                 identifier = context.getResources().getIdentifier(
-                    uriString,
-                    "raw",
-                    context.getPackageName()
+                        uriString,
+                        "raw",
+                        context.getPackageName()
                 );
             }
             if (identifier > 0) {
@@ -144,16 +145,17 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
     @ReactProp(name = PROP_MEDIA_INFO)
     public void setMediaInfo(final ReactExoplayerView videoView, @Nullable ReadableMap mediaInfo) {
-      if (mediaInfo == null) {
-          videoView.clearMediaInfo();
-        return;
-      }
+        if (mediaInfo == null) {
+            videoView.clearMediaInfo();
+            return;
+        }
 
-      String title = mediaInfo.hasKey(PROP_MEDIA_INFO_TITLE) ? mediaInfo.getString(PROP_MEDIA_INFO_TITLE) : null;
-      String artist = mediaInfo.hasKey(PROP_MEDIA_INFO_ARTIST) ? mediaInfo.getString(PROP_MEDIA_INFO_ARTIST) : null;
-      String channelName = mediaInfo.hasKey(PROP_MEDIA_INFO_CHANNEL_NAME) ? mediaInfo.getString(PROP_MEDIA_INFO_CHANNEL_NAME) : null;
+        String title = mediaInfo.hasKey(PROP_MEDIA_INFO_TITLE) ? mediaInfo.getString(PROP_MEDIA_INFO_TITLE) : null;
+        String artist = mediaInfo.hasKey(PROP_MEDIA_INFO_ARTIST) ? mediaInfo.getString(PROP_MEDIA_INFO_ARTIST) : null;
+        String channelName = mediaInfo.hasKey(PROP_MEDIA_INFO_CHANNEL_NAME) ? mediaInfo.getString(PROP_MEDIA_INFO_CHANNEL_NAME) : null;
+        String artwork = mediaInfo.hasKey(PROP_MEDIA_INFO_ARTWORK) ? mediaInfo.getString(PROP_MEDIA_INFO_ARTWORK) : null;
 
-      videoView.setMediaInfo(title, artist, channelName);
+        videoView.setMediaInfo(title, artist, channelName, artwork);
     }
 
     @ReactProp(name = PROP_DRM)
@@ -183,7 +185,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
     @ReactProp(name = PROP_SELECTED_VIDEO_TRACK)
     public void setSelectedVideoTrack(final ReactExoplayerView videoView,
-                                     @Nullable ReadableMap selectedVideoTrack) {
+                                      @Nullable ReadableMap selectedVideoTrack) {
         String typeString = null;
         Dynamic value = null;
         if (selectedVideoTrack != null) {
@@ -197,7 +199,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
 
     @ReactProp(name = PROP_SELECTED_AUDIO_TRACK)
     public void setSelectedAudioTrack(final ReactExoplayerView videoView,
-                                     @Nullable ReadableMap selectedAudioTrack) {
+                                      @Nullable ReadableMap selectedAudioTrack) {
         String typeString = null;
         Dynamic value = null;
         if (selectedAudioTrack != null) {
