@@ -105,6 +105,8 @@ export interface VideoProperties extends ViewProps {
     title?: string;
     artist?: string;
     channelName?: string;
+    artwork?: string;
+    albumTitle?: string;
   };
   seek?: number;
   fullscreen?: boolean;

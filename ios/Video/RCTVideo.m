@@ -284,11 +284,9 @@ static int const RCTVideoUnset = -1;
   if (currentTimeSecs >= 0 && self.onVideoProgress) {
     MPNowPlayingInfoCenter *center = [MPNowPlayingInfoCenter defaultCenter];
     NSDictionary *nowPlayingInfo = [center nowPlayingInfo];
-    NSMutableDictionary *nextPlayingInfo = [NSMutableDictionary dictionary];
+    NSMutableDictionary *nextPlayingInfo = [nowPlayingInfo mutableCopy];
 
     if ([nowPlayingInfo objectForKey: @"title"] != nil) {
-      nextPlayingInfo[MPMediaItemPropertyTitle] = [nowPlayingInfo objectForKey: @"title"];
-      nextPlayingInfo[MPMediaItemPropertyArtist] = [nowPlayingInfo objectForKey: @"artist"];
       nextPlayingInfo[MPMediaItemPropertyPlaybackDuration] = [NSNumber numberWithFloat: duration];
       nextPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = [NSNumber numberWithFloat: currentTimeSecs];
 
@@ -467,10 +465,23 @@ static int const RCTVideoUnset = -1;
   }
 
   nextPlayingInfo[MPMediaItemPropertyTitle] = [info objectForKey: @"title"];
+  nextPlayingInfo[MPMediaItemPropertyAlbumTitle] = [info objectForKey: @"albumTitle"];
   nextPlayingInfo[MPMediaItemPropertyArtist] = [info objectForKey: @"artist"];
 
-  [center setNowPlayingInfo: nextPlayingInfo];
+  dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+  dispatch_async(queue, ^{
+    if ([info objectForKey: @"artwork"]) {
+      UIImage *artworkImage = [[UIImage alloc] initWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:[info objectForKey: @"artwork"]]]];
+      if (artworkImage)
+      {
+          MPMediaItemArtwork *albumArt = [[MPMediaItemArtwork alloc] initWithBoundsSize:artworkImage.size requestHandler:^UIImage* _Nonnull(CGSize aSize) { return artworkImage; }];
+          [nextPlayingInfo setValue:albumArt forKey:MPMediaItemPropertyArtwork];
+          [center setNowPlayingInfo: nextPlayingInfo];
+      }
+    }
+  });
 
+  [center setNowPlayingInfo: nextPlayingInfo];
   [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
   [self becomeFirstResponder];
 }
