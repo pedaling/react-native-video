@@ -18,6 +18,7 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ClassCastException;
 import java.net.URL;
 
 public class ExoPlayerNotificationManager {
@@ -36,6 +37,9 @@ public class ExoPlayerNotificationManager {
             Drawable d = Drawable.createFromStream(is, params[1]);
             return ((BitmapDrawable) d).getBitmap();
           } catch (IOException e) {
+            e.printStackTrace();
+          } catch (ClassCastException e) {
+            // 이미지가 gif인 경우에 ClassCastException이 난다
             e.printStackTrace();
           }
           return null;
