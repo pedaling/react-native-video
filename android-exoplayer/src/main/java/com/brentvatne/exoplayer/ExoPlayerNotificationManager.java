@@ -18,7 +18,6 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.ClassCastException;
 import java.net.URL;
 
 public class ExoPlayerNotificationManager {
