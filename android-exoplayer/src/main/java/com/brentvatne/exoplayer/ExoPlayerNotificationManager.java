@@ -86,9 +86,9 @@ public class ExoPlayerNotificationManager {
     final String CHANNEL_ID = "@class101/player_controller";
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       NotificationChannel mChannel = new NotificationChannel(
-              CHANNEL_ID,
-              channelName,
-              NotificationManager.IMPORTANCE_LOW
+        CHANNEL_ID,
+        channelName,
+        NotificationManager.IMPORTANCE_LOW
       );
       notificationManager.createNotificationChannel(mChannel);
     }
@@ -100,10 +100,10 @@ public class ExoPlayerNotificationManager {
     this.artwork = artwork != null ? loadImageFromURL(artwork, "artwork") : null;
 
     this.playerNotificationManager = new PlayerNotificationManager(
-            context,
-            CHANNEL_ID,
-            0,
-            new DescriptionAdapter()
+      context,
+      CHANNEL_ID,
+      0,
+      new DescriptionAdapter()
     );
   }
 
