@@ -1,5 +1,8 @@
 ## Changelog
 
+### next
+* Added PictureInPicture support for AndroidExoplayer API >= 28. [#1776](https://github.com/react-native-community/react-native-video/pull/1776)
+
 ### Version 5.0.1
 * Fix AndroidX Support bad merge
 
