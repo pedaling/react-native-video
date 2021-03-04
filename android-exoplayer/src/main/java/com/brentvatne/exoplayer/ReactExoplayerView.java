@@ -1382,11 +1382,16 @@ class ReactExoplayerView extends FrameLayout implements
                 && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
             long videoPosition = player.getCurrentPosition();
             Activity activity = themedReactContext.getCurrentActivity();
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                PictureInPictureParams.Builder params = new PictureInPictureParams.Builder();
-                activity.enterPictureInPictureMode(params.build());
-            } else {
-                activity.enterPictureInPictureMode();
+
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    PictureInPictureParams.Builder params = new PictureInPictureParams.Builder();
+                    activity.enterPictureInPictureMode(params.build());
+                } else {
+                    activity.enterPictureInPictureMode();
+                }
+            } catch (IllegalStateException ignore) {
+                // ignore if PIP mode is disabled
             }
         }
     }
