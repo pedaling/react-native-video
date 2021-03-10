@@ -82,6 +82,10 @@ public class ExoPlayerNotificationManager {
   public ExoPlayerNotificationManager(Context context, String title, String artist, String channelName, String artwork) {
     this.context = context;
 
+    this.title = title;
+    this.artist = artist;
+    this.artwork = artwork != null ? loadImageFromURL(artwork, "artwork") : null;
+
     NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -93,18 +97,14 @@ public class ExoPlayerNotificationManager {
       notificationManager.createNotificationChannel(mChannel);
     }
 
-    context.startService(new Intent(context,KillNotificationService.class));
-
-    this.title = title;
-    this.artist = artist;
-    this.artwork = artwork != null ? loadImageFromURL(artwork, "artwork") : null;
-
     this.playerNotificationManager = new PlayerNotificationManager(
       context,
       CHANNEL_ID,
       NOTIFICATION_ID,
       new DescriptionAdapter()
     );
+
+    context.startService(new Intent(context, KillNotificationService.class));
   }
 
   public void setPlayer(SimpleExoPlayer player) {
