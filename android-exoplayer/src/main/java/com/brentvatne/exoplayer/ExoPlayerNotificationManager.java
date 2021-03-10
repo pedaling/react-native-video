@@ -4,14 +4,11 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Build;
-import android.R;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -21,10 +18,12 @@ import com.google.android.exoplayer2.ui.PlayerNotificationManager;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class ExoPlayerNotificationManager {
+  public static final String CHANNEL_ID = "@class101/player_controller";
+  public static final int NOTIFICATION_ID = 0;
+
   private String title;
   private String artist;
   private Bitmap artwork;
@@ -81,9 +80,10 @@ public class ExoPlayerNotificationManager {
   }
 
   public ExoPlayerNotificationManager(Context context, String title, String artist, String channelName, String artwork) {
+    this.context = context;
+
     NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
 
-    final String CHANNEL_ID = "@class101/player_controller";
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       NotificationChannel mChannel = new NotificationChannel(
         CHANNEL_ID,
@@ -93,7 +93,7 @@ public class ExoPlayerNotificationManager {
       notificationManager.createNotificationChannel(mChannel);
     }
 
-    this.context = context;
+    context.startService(new Intent(context,KillNotificationService.class));
 
     this.title = title;
     this.artist = artist;
@@ -102,7 +102,7 @@ public class ExoPlayerNotificationManager {
     this.playerNotificationManager = new PlayerNotificationManager(
       context,
       CHANNEL_ID,
-      0,
+      NOTIFICATION_ID,
       new DescriptionAdapter()
     );
   }
