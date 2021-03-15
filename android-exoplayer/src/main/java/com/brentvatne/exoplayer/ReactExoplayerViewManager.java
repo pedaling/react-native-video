@@ -173,6 +173,7 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
         videoView.setDrmLicenseServerUrl(licenseServerUrl);
         videoView.setDrmUserAuthToken(userAuthToken);
         videoView.setDrmContentId(contentId);
+        videoView.setUseTextureView(false);
     }
 
     @ReactProp(name = PROP_RESIZE_MODE)
