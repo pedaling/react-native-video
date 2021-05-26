@@ -104,14 +104,7 @@ public class ExoPlayerNotificationManager {
       new DescriptionAdapter()
     );
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      Intent killNotificationServiceIntent = new Intent(context, KillNotificationService.class);
-      killNotificationServiceIntent.putExtra("channelName", channelName);
-
-      context.startForegroundService(killNotificationServiceIntent);
-    } else {
-      context.startService(new Intent(context, KillNotificationService.class));
-    }
+    context.startService(new Intent(context, KillNotificationService.class));
   }
 
   public void setPlayer(SimpleExoPlayer player) {
