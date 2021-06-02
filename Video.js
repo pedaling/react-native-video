@@ -115,8 +115,8 @@ export default class Video extends Component {
   };
 
   _onStateChanged = (event) => {
-    if (this.props.onStateChange) {
-      this.props.onStateChange(event.nativeEvent);
+    if (this.props.onStateChanged) {
+      this.props.onStateChanged(event.nativeEvent);
     }
   };
 
