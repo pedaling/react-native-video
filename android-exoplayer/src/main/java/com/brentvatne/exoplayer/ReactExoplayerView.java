@@ -1140,8 +1140,6 @@ class ReactExoplayerView extends FrameLayout implements
                 context.getString(R.string.exo_controls_pause_description),
                 pausePendingIntent);
 
-        Log.d("ReactExoplayerView", "createNotification: isPaused=" + isPaused);
-
         Notification notification = new NotificationCompat.Builder(context, CHANNEL_ID)
                 // Show controls on lock screen even when user hides sensitive content.
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
