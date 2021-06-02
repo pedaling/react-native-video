@@ -7,29 +7,22 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.PictureInPictureParams;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.drawable.Icon;
 import android.media.AudioManager;
 import android.media.MediaMetadata;
-import android.media.session.MediaSession;
 import android.net.Uri;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
-import android.os.Build;
-import android.service.notification.StatusBarNotification;
-import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
-import android.support.v4.media.session.MediaControllerCompat;
 import android.support.v4.media.session.MediaSessionCompat;
-import android.support.v4.media.session.PlaybackStateCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -70,6 +63,7 @@ import com.google.android.exoplayer2.drm.FrameworkMediaCrypto;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
+import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
 import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
@@ -80,8 +74,8 @@ import com.google.android.exoplayer2.source.ExtractorMediaSource;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.MergingMediaSource;
 import com.google.android.exoplayer2.source.SingleSampleMediaSource;
-import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.TrackGroup;
+import com.google.android.exoplayer2.source.TrackGroupArray;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
 import com.google.android.exoplayer2.source.dash.DefaultDashChunkSource;
 import com.google.android.exoplayer2.source.hls.HlsMediaSource;
@@ -92,27 +86,23 @@ import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.trackselection.TrackSelectionArray;
-import com.google.android.exoplayer2.ui.PlayerNotificationManager;
+import com.google.android.exoplayer2.ui.PlayerControlView;
+import com.google.android.exoplayer2.upstream.BandwidthMeter;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
-import com.google.android.exoplayer2.upstream.BandwidthMeter;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
 import com.google.android.exoplayer2.util.Util;
-import com.google.android.exoplayer2.ui.PlayerControlView;
-import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.CookieHandler;
 import java.net.CookieManager;
 import java.net.CookiePolicy;
-import java.lang.Math;
 import java.net.URL;
-import java.util.Map;
-import java.lang.Object;
 import java.util.ArrayList;
 import java.util.Locale;
+import java.util.Map;
 
 @SuppressLint("ViewConstructor")
 class ReactExoplayerView extends FrameLayout implements
@@ -144,6 +134,8 @@ class ReactExoplayerView extends FrameLayout implements
 
     public static final String ACTION_PLAY = "com.google.android.exoplayer.play";
     public static final String ACTION_PAUSE = "com.google.android.exoplayer.pause";
+    public static final String ACTION_PREVIOUS = "com.google.android.exoplayer.prev";
+    public static final String ACTION_NEXT = "com.google.android.exoplayer.next";
 
     private final MediaSessionCompat mediaSession = new MediaSessionCompat(getContext(), "tag");
     private MediaSessionConnector mediaSessionConnector;
@@ -258,6 +250,10 @@ class ReactExoplayerView extends FrameLayout implements
                 String action = intent.getAction();
                 if (ACTION_PLAY.equals(action) || ACTION_PAUSE.equals(action)) {
                     controlDispatcher.dispatchSetPlayWhenReady(player, ACTION_PLAY.equals(action));
+                } else if (ACTION_NEXT.equals(action)) {
+                    eventEmitter.next();
+                } else if (ACTION_PREVIOUS.equals(action)) {
+                    eventEmitter.previous();
                 }
             }
         };
@@ -265,6 +261,8 @@ class ReactExoplayerView extends FrameLayout implements
         IntentFilter notificationControlIntentFilter = new IntentFilter();
         notificationControlIntentFilter.addAction(ACTION_PLAY);
         notificationControlIntentFilter.addAction(ACTION_PAUSE);
+        notificationControlIntentFilter.addAction(ACTION_PREVIOUS);
+        notificationControlIntentFilter.addAction(ACTION_NEXT);
 
         pipReceiver = new BroadcastReceiver() {
             @Override
@@ -645,12 +643,12 @@ class ReactExoplayerView extends FrameLayout implements
                     if (!player.getPlayWhenReady()) {
                         setPlayWhenReady(true);
                     }
+                    eventEmitter.stateChanged(false);
                     updateNotification();
                     break;
                 default:
                     break;
             }
-
         } else {
             initializePlayer();
         }
@@ -664,6 +662,7 @@ class ReactExoplayerView extends FrameLayout implements
             if (player.getPlayWhenReady()) {
                 setPlayWhenReady(false);
             }
+            eventEmitter.stateChanged(true);
             updateNotification();
         }
         setKeepScreenOn(false);
@@ -743,6 +742,9 @@ class ReactExoplayerView extends FrameLayout implements
     public void onAudioFocusChange(int focusChange) {
         switch (focusChange) {
             case AudioManager.AUDIOFOCUS_LOSS:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                pausePlayback();
                 eventEmitter.audioFocusChanged(false);
                 break;
             case AudioManager.AUDIOFOCUS_GAIN:
@@ -752,15 +754,15 @@ class ReactExoplayerView extends FrameLayout implements
                 break;
         }
 
-        if (player != null) {
-            if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
-                // Lower the volume
-                player.setVolume(audioVolume * 0.8f);
-            } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
-                // Raise it back to normal
-                player.setVolume(audioVolume * 1);
-            }
-        }
+//        if (player != null) {
+//            if (focusChange == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) {
+//                // Lower the volume
+//                player.setVolume(audioVolume * 0.8f);
+//            } else if (focusChange == AudioManager.AUDIOFOCUS_GAIN) {
+//                // Raise it back to normal
+//                player.setVolume(audioVolume * 1);
+//            }
+//        }
     }
 
     // AudioBecomingNoisyListener implementation
@@ -800,8 +802,11 @@ class ReactExoplayerView extends FrameLayout implements
                     playerControlView.show();
                 }
 
+                if (playWhenReady) {
+                    requestAudioFocus();
+                }
+
                 if (playWhenReady == isPaused) {
-                    eventEmitter.stateChanged(!playWhenReady);
                     setPausedModifier(!playWhenReady);
                 }
 
@@ -1140,16 +1145,40 @@ class ReactExoplayerView extends FrameLayout implements
                 context.getString(R.string.exo_controls_pause_description),
                 pausePendingIntent);
 
+        Intent previousIntent = new Intent(ACTION_PREVIOUS).setPackage(context.getPackageName());
+        PendingIntent previousPendingIntent = PendingIntent.getBroadcast(
+                context, 0, previousIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+        NotificationCompat.Action previousAction = new NotificationCompat.Action(
+                R.drawable.exo_notification_previous,
+                context.getString(R.string.exo_controls_previous_description),
+                previousPendingIntent);
+
+        Intent nextIntent = new Intent(ACTION_NEXT).setPackage(context.getPackageName());
+        PendingIntent nextPendingIntent = PendingIntent.getBroadcast(
+                context, 0, nextIntent, PendingIntent.FLAG_CANCEL_CURRENT);
+        NotificationCompat.Action nextAction = new NotificationCompat.Action(
+                R.drawable.exo_notification_next,
+                context.getString(R.string.exo_controls_next_description),
+                nextPendingIntent);
+
+        Intent mainActivityIntent =
+                context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        PendingIntent contentPendingIntent = PendingIntent.getActivity(
+                context, 0, mainActivityIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
         Notification notification = new NotificationCompat.Builder(context, CHANNEL_ID)
                 // Show controls on lock screen even when user hides sensitive content.
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setSmallIcon(context.getApplicationInfo().icon)
                 // Add media control buttons that invoke intents in your media service
+                .addAction(previousAction)
                 .addAction(isPaused ? playAction : pauseAction)
+                .addAction(nextAction)
                 // Apply the media style template
                 .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
-                        .setShowActionsInCompactView(0)
+                        .setShowActionsInCompactView(0, 1, 2)
                         .setMediaSession(mediaSession.getSessionToken()))
+                .setContentIntent(contentPendingIntent)
                 .setOngoing(true)
                 .build();
 
@@ -1159,6 +1188,12 @@ class ReactExoplayerView extends FrameLayout implements
     private void updateNotification() {
         NotificationManager notificationManager =
                 (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+
+        if (!playInBackground && !isInPictureInPictureMode) {
+            notificationManager.cancel(NOTIFICATION_ID);
+            return;
+        }
+
         Notification notification = createNotification();
         notificationManager.notify(NOTIFICATION_ID, notification);
     }
@@ -1457,6 +1492,7 @@ class ReactExoplayerView extends FrameLayout implements
 
     public void setPlayInBackground(boolean playInBackground) {
         this.playInBackground = playInBackground;
+        updateNotification();
     }
 
     public void setDisableFocus(boolean disableFocus) {
@@ -1583,6 +1619,7 @@ class ReactExoplayerView extends FrameLayout implements
             this.enterPictureInPictureMode();
         }
         isInPictureInPictureMode = pictureInPicture;
+        updateNotification();
     }
 
     /**

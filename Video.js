@@ -120,6 +120,18 @@ export default class Video extends Component {
     }
   };
 
+  _onPressPrevious = () => {
+    if (this.props.onPressPrevious) {
+      this.props.onPressPrevious();
+    }
+  };
+
+  _onPressNext = () => {
+    if (this.props.onPressNext) {
+      this.props.onPressNext();
+    }
+  };
+
   _onProgress = (event) => {
     if (this.props.onProgress) {
       this.props.onProgress(event.nativeEvent);
@@ -310,6 +322,8 @@ export default class Video extends Component {
       onAudioBecomingNoisy: this._onAudioBecomingNoisy,
       onPictureInPictureStatusChanged: this._onPictureInPictureStatusChanged,
       onRestoreUserInterfaceForPictureInPictureStop: this._onRestoreUserInterfaceForPictureInPictureStop,
+      onPressPrevious: this._onPressPrevious,
+      onPressNext: this._onPressNext,
     });
 
     const posterStyle = {
