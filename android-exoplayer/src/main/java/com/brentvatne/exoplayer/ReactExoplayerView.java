@@ -247,9 +247,15 @@ class ReactExoplayerView extends FrameLayout implements
                 if (player == null) {
                     return;
                 }
+
                 String action = intent.getAction();
-                if (ACTION_PLAY.equals(action) || ACTION_PAUSE.equals(action)) {
-                    controlDispatcher.dispatchSetPlayWhenReady(player, ACTION_PLAY.equals(action));
+                if (ACTION_PLAY.equals(action)) {
+                    boolean hasAudioFocus = requestAudioFocus();
+                    if (hasAudioFocus) {
+                        controlDispatcher.dispatchSetPlayWhenReady(player, true);
+                    }
+                } else if (ACTION_PAUSE.equals(action)) {
+                    controlDispatcher.dispatchSetPlayWhenReady(player, false);
                 } else if (ACTION_NEXT.equals(action)) {
                     eventEmitter.next();
                 } else if (ACTION_PREVIOUS.equals(action)) {
@@ -800,10 +806,6 @@ class ReactExoplayerView extends FrameLayout implements
                 //Setting the visibility for the playerControlView
                 if (playerControlView != null) {
                     playerControlView.show();
-                }
-
-                if (playWhenReady) {
-                    requestAudioFocus();
                 }
 
                 if (playWhenReady == isPaused) {
