@@ -36,6 +36,9 @@ class VideoEventEmitter {
     private static final String EVENT_FULLSCREEN_DID_PRESENT = "onVideoFullscreenPlayerDidPresent";
     private static final String EVENT_FULLSCREEN_WILL_DISMISS = "onVideoFullscreenPlayerWillDismiss";
     private static final String EVENT_FULLSCREEN_DID_DISMISS = "onVideoFullscreenPlayerDidDismiss";
+    private static final String EVENT_STATE_CHANGED = "onVideoStateChanged";
+    private static final String EVENT_PREVIOUS = "onPressPrevious";
+    private static final String EVENT_NEXT = "onPressNext";
 
     private static final String EVENT_STALLED = "onPlaybackStalled";
     private static final String EVENT_RESUME = "onPlaybackResume";
@@ -59,6 +62,9 @@ class VideoEventEmitter {
             EVENT_FULLSCREEN_DID_PRESENT,
             EVENT_FULLSCREEN_WILL_DISMISS,
             EVENT_FULLSCREEN_DID_DISMISS,
+            EVENT_STATE_CHANGED,
+            EVENT_PREVIOUS,
+            EVENT_NEXT,
             EVENT_STALLED,
             EVENT_RESUME,
             EVENT_READY,
@@ -84,6 +90,9 @@ class VideoEventEmitter {
             EVENT_FULLSCREEN_DID_PRESENT,
             EVENT_FULLSCREEN_WILL_DISMISS,
             EVENT_FULLSCREEN_DID_DISMISS,
+            EVENT_STATE_CHANGED,
+            EVENT_PREVIOUS,
+            EVENT_NEXT,
             EVENT_STALLED,
             EVENT_RESUME,
             EVENT_READY,
@@ -122,6 +131,7 @@ class VideoEventEmitter {
     private static final String EVENT_PROP_IS_BUFFERING = "isBuffering";
     private static final String EVENT_PROP_PLAYBACK_RATE = "playbackRate";
     private static final String EVENT_PROP_PICTURE_IN_PICTURE_ACTIVE = "isActive";
+    private static final String EVENT_PROP_IS_PAUSED = "isPaused";
 
     private static final String EVENT_PROP_ERROR = "error";
     private static final String EVENT_PROP_ERROR_STRING = "errorString";
@@ -195,6 +205,20 @@ class VideoEventEmitter {
 
     void ready() {
         receiveEvent(EVENT_READY, null);
+    }
+
+    void stateChanged(boolean isPaused) {
+        WritableMap map = Arguments.createMap();
+        map.putBoolean(EVENT_PROP_IS_PAUSED, isPaused);
+        receiveEvent(EVENT_STATE_CHANGED, map);
+    }
+
+    void previous() {
+        receiveEvent(EVENT_PREVIOUS, null);
+    }
+
+    void next() {
+        receiveEvent(EVENT_NEXT, null);
     }
 
     void buffering(boolean isBuffering) {
