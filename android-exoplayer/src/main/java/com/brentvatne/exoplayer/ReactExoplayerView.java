@@ -1126,6 +1126,7 @@ class ReactExoplayerView extends FrameLayout implements
                     notificationChannelName != null ? notificationChannelName : CHANNEL_ID,
                     NotificationManager.IMPORTANCE_DEFAULT);
             channel.setDescription(CHANNEL_ID);
+            channel.setSound(null, null);
             // Register the channel with the system; you can't change the importance
             // or other notification behaviors after this
             notificationManager.createNotificationChannel(channel);
