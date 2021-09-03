@@ -496,7 +496,6 @@ class ReactExoplayerView extends FrameLayout implements
                 if (playerNeedsSource && srcUri != null) {
                     exoPlayerView.invalidateAspectRatio();
 
-                    ArrayList<MediaSource> mediaSourceList = buildTextSources();
                     DrmSessionManager drmSessionManager = null;
 
                     if (self.drmLicenseServerUrl != null && self.drmUserAuthToken != null && self.drmContentId != null) {
@@ -516,6 +515,7 @@ class ReactExoplayerView extends FrameLayout implements
                             return;
                         }
                     }
+                    ArrayList<MediaSource> mediaSourceList = buildTextSources();
                     MediaSource videoSource = buildMediaSource(srcUri, extension, drmSessionManager);
                     MediaSource mediaSource;
                     if (mediaSourceList.size() == 0) {
