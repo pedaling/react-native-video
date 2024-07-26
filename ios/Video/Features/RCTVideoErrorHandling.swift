@@ -3,6 +3,7 @@ enum RCTVideoError : Int {
     case noLicenseServerURL
     case licenseRequestNotOk
     case noDataFromLicenseRequest
+    case pallyconError
     case noSPC
     case noDataRequest
     case noCertificateData
@@ -79,6 +80,17 @@ enum RCTVideoErrorHandler {
                     (statusCode)
                 ),
                 NSLocalizedRecoverySuggestionErrorKey: "Did you send the correct data to the license Server? Is the server ok?"
+            ])
+    }
+
+    static func pallyconError(code: Int, error: String) -> NSError {
+        return NSError(
+            domain: "RCTVideo",
+            code: code,
+            userInfo: [
+                NSLocalizedDescriptionKey: error,
+                NSLocalizedFailureReasonErrorKey: error,
+                NSLocalizedRecoverySuggestionErrorKey:error
             ])
     }
 

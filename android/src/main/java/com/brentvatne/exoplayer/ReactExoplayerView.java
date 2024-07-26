@@ -1,14 +1,25 @@
 package com.brentvatne.exoplayer;
 
+import static android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS;
+
+import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.PictureInPictureParams;
+import android.content.BroadcastReceiver;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.support.v4.media.MediaDescriptionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -30,14 +41,11 @@ import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
-import com.facebook.react.util.RNLog;
 import com.google.android.exoplayer2.C;
 import com.google.android.exoplayer2.DefaultLoadControl;
 import com.google.android.exoplayer2.DefaultRenderersFactory;
-import com.google.android.exoplayer2.ExoPlaybackException;
-import com.google.android.exoplayer2.drm.MediaDrmCallbackException;
-import com.google.android.exoplayer2.drm.DrmSession.DrmSessionException;
 import com.google.android.exoplayer2.Format;
+import com.google.android.exoplayer2.ForwardingPlayer;
 import com.google.android.exoplayer2.MediaItem;
 import com.google.android.exoplayer2.PlaybackException;
 import com.google.android.exoplayer2.PlaybackParameters;
@@ -50,16 +58,13 @@ import com.google.android.exoplayer2.drm.DefaultDrmSessionManagerProvider;
 import com.google.android.exoplayer2.drm.DrmSessionEventListener;
 import com.google.android.exoplayer2.drm.DrmSessionManager;
 import com.google.android.exoplayer2.drm.DrmSessionManagerProvider;
-import com.google.android.exoplayer2.drm.ExoMediaDrm;
 import com.google.android.exoplayer2.drm.FrameworkMediaDrm;
 import com.google.android.exoplayer2.drm.HttpMediaDrmCallback;
-import com.google.android.exoplayer2.drm.MediaDrmCallbackException;
 import com.google.android.exoplayer2.drm.UnsupportedDrmException;
+import com.google.android.exoplayer2.ext.mediasession.TimelineQueueNavigator;
 import com.google.android.exoplayer2.mediacodec.MediaCodecInfo;
-import com.google.android.exoplayer2.mediacodec.MediaCodecRenderer;
 import com.google.android.exoplayer2.mediacodec.MediaCodecUtil;
 import com.google.android.exoplayer2.metadata.Metadata;
-import com.google.android.exoplayer2.source.BehindLiveWindowException;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.MergingMediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
@@ -75,7 +80,6 @@ import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.trackselection.MappingTrackSelector;
 import com.google.android.exoplayer2.trackselection.ExoTrackSelection;
-import com.google.android.exoplayer2.trackselection.TrackSelectionParameters;
 import com.google.android.exoplayer2.trackselection.TrackSelectionOverride;
 import com.google.android.exoplayer2.ui.PlayerControlView;
 import com.google.android.exoplayer2.upstream.BandwidthMeter;
@@ -83,15 +87,12 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultAllocator;
 import com.google.android.exoplayer2.upstream.DefaultBandwidthMeter;
 import com.google.android.exoplayer2.upstream.HttpDataSource;
-import com.google.android.exoplayer2.util.Assertions;
 import com.google.android.exoplayer2.util.Util;
-import com.google.android.exoplayer2.trackselection.TrackSelection;
 import com.google.android.exoplayer2.source.dash.DashUtil;
 import com.google.android.exoplayer2.source.dash.manifest.DashManifest;
 import com.google.android.exoplayer2.source.dash.manifest.Period;
 import com.google.android.exoplayer2.source.dash.manifest.AdaptationSet;
 import com.google.android.exoplayer2.source.dash.manifest.Representation;
-import com.google.android.exoplayer2.source.dash.manifest.Descriptor;
 
 import java.net.CookieHandler;
 import java.net.CookieManager;
@@ -99,11 +100,10 @@ import java.net.CookiePolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
-import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.List;
+import java.util.UUID;
+import java.util.Map;
 import java.lang.Thread;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -111,6 +111,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.lang.Integer;
+
+import com.facebook.react.HeadlessJsTaskService;
 
 @SuppressLint("ViewConstructor")
 class ReactExoplayerView extends FrameLayout implements
@@ -135,6 +137,13 @@ class ReactExoplayerView extends FrameLayout implements
         DEFAULT_COOKIE_MANAGER.setCookiePolicy(CookiePolicy.ACCEPT_ORIGINAL_SERVER);
     }
 
+    private ExoPlayerMediaSession mediaSession;
+    private MediaSessionConnector mediaSessionConnector;
+    private BroadcastReceiver notificationControlReceiver;
+    private BroadcastReceiver fullscreenReceiver;
+    private boolean isFullscreenV2 = false;
+    private final BroadcastReceiver leaveReceiver;
+    private BroadcastReceiver pipReceiver;
     private final VideoEventEmitter eventEmitter;
     private final ReactExoplayerConfig config;
     private final DefaultBandwidthMeter bandwidthMeter;
@@ -154,7 +163,7 @@ class ReactExoplayerView extends FrameLayout implements
     private long resumePosition;
     private boolean loadVideoStarted;
     private boolean isFullscreen;
-    private boolean isInBackground;
+    private boolean isInBackground = true;
     private boolean isPaused;
     private boolean isBuffering;
     private boolean muted = false;
@@ -167,6 +176,9 @@ class ReactExoplayerView extends FrameLayout implements
     private boolean hasDrmFailed = false;
     private boolean isUsingContentResolution = false;
     private boolean selectTrackWhenReady = false;
+    private boolean isPictureInPictureEnabled;
+    private int startPosition = 0;
+    private Timer concurrentPlaybackCheckTimer;
 
     private int minBufferMs = DefaultLoadControl.DEFAULT_MIN_BUFFER_MS;
     private int maxBufferMs = DefaultLoadControl.DEFAULT_MAX_BUFFER_MS;
@@ -176,6 +188,8 @@ class ReactExoplayerView extends FrameLayout implements
     private double minBackBufferMemoryReservePercent = ReactExoplayerView.DEFAULT_MIN_BACK_BUFFER_MEMORY_RESERVE;
     private double minBufferMemoryReservePercent = ReactExoplayerView.DEFAULT_MIN_BUFFER_MEMORY_RESERVE;
     private Handler mainHandler;
+
+    private boolean isAttachedToWindow = false;
 
     // Props from React
     private int backBufferDurationMs = DefaultLoadControl.DEFAULT_BACK_BUFFER_DURATION_MS;
@@ -191,6 +205,8 @@ class ReactExoplayerView extends FrameLayout implements
     private ReadableArray textTracks;
     private boolean disableFocus;
     private boolean focusable = true;
+    private boolean isBackgroundTaskEnabled = true;
+    private boolean isConcurrentPlaybackCheckTimerEnabled = true;
     private boolean disableBuffering;
     private long contentStartTime = -1L;
     private boolean disableDisconnectError;
@@ -259,8 +275,108 @@ class ReactExoplayerView extends FrameLayout implements
         createViews();
 
         audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
-        themedReactContext.addLifecycleEventListener(this);
         audioBecomingNoisyReceiver = new AudioBecomingNoisyReceiver(themedReactContext);
+        ReactExoplayerView self = this;
+        notificationControlReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                Player player = ReactExoplayerView.this.player;
+                ForwardingPlayer forwardingPlayer = new ForwardingPlayer(player);
+                if (player == null) {
+                    return;
+                }
+
+                String action = intent.getAction();
+                if (ReactExoplayerNotificationService.ACTION_PLAY.equals(action)) {
+                    hasAudioFocus = requestAudioFocus();
+                    if (hasAudioFocus) {
+                        forwardingPlayer.play();
+                        eventEmitter.externalPlaybackChanged(true);
+                    }
+                } else if (ReactExoplayerNotificationService.ACTION_PAUSE.equals(action)) {
+                    forwardingPlayer.pause();
+                    eventEmitter.externalPlaybackChanged(false);
+                } else if (ReactExoplayerNotificationService.ACTION_REWIND.equals(action)) {
+                    seekTo(player.getCurrentPosition() - 10000);
+                } else if (ReactExoplayerNotificationService.ACTION_FAST_FORWARD.equals(action)) {
+                    seekTo(player.getCurrentPosition() + 10000);
+                } else if (ReactExoplayerNotificationService.ACTION_PREVIOUS.equals(action)) {
+                    if (isBackgroundTaskEnabled && isInBackground) {
+                        Intent backgroundIntent = new Intent(context, ReactExoplayerBackgroundTask.class);
+                        backgroundIntent.putExtra("type", "onPrevious");
+                        context.startService(backgroundIntent);
+                        HeadlessJsTaskService.acquireWakeLockNow(context);
+                    } else {
+                        eventEmitter.previous();
+                    }
+                } else if (ReactExoplayerNotificationService.ACTION_NEXT.equals(action)) {
+                    if (isBackgroundTaskEnabled && isInBackground) {
+                        Intent backgroundIntent = new Intent(context, ReactExoplayerBackgroundTask.class);
+                        backgroundIntent.putExtra("type", "onNext");
+                        context.startService(backgroundIntent);
+                        HeadlessJsTaskService.acquireWakeLockNow(context);
+                    } else {
+                        eventEmitter.next();
+                    }
+                }
+            }
+        };
+
+        fullscreenReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getAction().equals("fullscreenClosed")) {
+                    ReactExoplayerView.this.isFullscreenV2 = false;
+                    eventEmitter.fullscreenV2Closed();
+                }
+            }
+        };
+
+        IntentFilter notificationControlIntentFilter = new IntentFilter();
+        notificationControlIntentFilter.addAction(ReactExoplayerNotificationService.ACTION_PLAY);
+        notificationControlIntentFilter.addAction(ReactExoplayerNotificationService.ACTION_PAUSE);
+        notificationControlIntentFilter.addAction(ReactExoplayerNotificationService.ACTION_PREVIOUS);
+        notificationControlIntentFilter.addAction(ReactExoplayerNotificationService.ACTION_NEXT);
+
+        IntentFilter leaveIntentFilter = new IntentFilter(ACTION_CLOSE_SYSTEM_DIALOGS);
+
+        leaveReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String reason = intent.getStringExtra("reason");
+                if (reason == null) {
+                    return;
+                }
+                if(!reason.equals("homekey") && !reason.equals("recentapps")){
+                    return;
+                }
+
+                if (isPictureInPictureEnabled && player != null && player.isPlaying()) {
+                    self.enterPictureInPictureMode();
+                }
+            }
+        };
+
+        pipReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String action = intent.getAction();
+
+                if (action.equals("pipCloseButton")) {
+                    pausePlayback();
+                }
+            }
+        };
+
+        IntentFilter pipIntentFilter = new IntentFilter("onPictureInPictureModeChanged");
+        pipIntentFilter.addAction("pipCloseButton");
+
+        IntentFilter fullscreenFilter = new IntentFilter("fullscreenClosed");
+
+        themedReactContext.registerReceiver(fullscreenReceiver, fullscreenFilter);
+        themedReactContext.registerReceiver(notificationControlReceiver, notificationControlIntentFilter);
+        themedReactContext.registerReceiver(leaveReceiver, leaveIntentFilter);
+        themedReactContext.registerReceiver(pipReceiver, pipIntentFilter);
     }
 
 
@@ -280,7 +396,7 @@ class ReactExoplayerView extends FrameLayout implements
         LayoutParams layoutParams = new LayoutParams(
                 LayoutParams.MATCH_PARENT,
                 LayoutParams.MATCH_PARENT);
-        exoPlayerView = new ExoPlayerView(getContext());
+          exoPlayerView = new ExoPlayerView(getContext());
         exoPlayerView.setLayoutParams(layoutParams);
 
         addView(exoPlayerView, 0, layoutParams);
@@ -293,6 +409,7 @@ class ReactExoplayerView extends FrameLayout implements
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        isAttachedToWindow = true;
         initializePlayer();
     }
 
@@ -302,7 +419,7 @@ class ReactExoplayerView extends FrameLayout implements
         /* We want to be able to continue playing audio when switching tabs.
          * Leave this here in case it causes issues.
          */
-        // stopPlayback();
+        stopPlayback();
     }
 
     // LifecycleEventListener implementation
@@ -318,7 +435,7 @@ class ReactExoplayerView extends FrameLayout implements
     @Override
     public void onHostPause() {
         isInBackground = true;
-        if (playInBackground) {
+        if (playInBackground || isPictureInPictureEnabled) {
             return;
         }
         setPlayWhenReady(false);
@@ -327,6 +444,14 @@ class ReactExoplayerView extends FrameLayout implements
     @Override
     public void onHostDestroy() {
         stopPlayback();
+        try {
+            themedReactContext.unregisterReceiver(fullscreenReceiver);
+            themedReactContext.unregisterReceiver(notificationControlReceiver);
+            themedReactContext.unregisterReceiver(leaveReceiver);
+            themedReactContext.unregisterReceiver(pipReceiver);
+        } catch (Exception ignore) {
+            // ignore if already unregistered
+        }
     }
 
     public void cleanUpResources() {
@@ -529,6 +654,12 @@ class ReactExoplayerView extends FrameLayout implements
     }
 
     private void initializePlayer() {
+        if(!isAttachedToWindow){
+            return;
+        }
+
+      themedReactContext.addLifecycleEventListener(this);
+
         ReactExoplayerView self = this;
         Activity activity = themedReactContext.getCurrentActivity();
         // This ensures all props have been settled, to avoid async racing conditions.
@@ -540,7 +671,7 @@ class ReactExoplayerView extends FrameLayout implements
                         // Initialize core configuration and listeners
                         initializePlayerCore(self);
                     }
-                    if (playerNeedsSource && srcUri != null) {
+                    if (srcUri != null) {
                         exoPlayerView.invalidateAspectRatio();
                         // DRM session manager creation must be done on a different thread to prevent crashes so we start a new thread
                         ExecutorService es = Executors.newSingleThreadExecutor();
@@ -572,8 +703,6 @@ class ReactExoplayerView extends FrameLayout implements
                                 });
                             }
                         });
-                    } else if (srcUri != null) {
-                        initializePlayerSource(self, null);
                     }
                 } catch (Exception ex) {
                     self.playerNeedsSource = true;
@@ -616,7 +745,6 @@ class ReactExoplayerView extends FrameLayout implements
         exoPlayerView.setPlayer(player);
         audioBecomingNoisyReceiver.setListener(self);
         bandwidthMeter.addEventListener(new Handler(), self);
-        setPlayWhenReady(!isPaused);
         playerNeedsSource = true;
 
         PlaybackParameters params = new PlaybackParameters(rate, 1f);
@@ -684,6 +812,78 @@ class ReactExoplayerView extends FrameLayout implements
         setControls(controls);
         applyModifiers();
         startBufferCheckTimer();
+        hasDrmFailed = false;
+    }
+
+    private void startConcurrentPlaybackCheckTask(int interval) {
+
+        if(!isConcurrentPlaybackCheckTimerEnabled){
+            return;
+        }
+        if(concurrentPlaybackCheckTimer != null) {
+            concurrentPlaybackCheckTimer.cancel();
+        }
+        concurrentPlaybackCheckTimer = new Timer();
+        TimerTask concurrentPlaybackCheckTask = new TimerTask() {
+            @Override
+            public void run() {
+                if(player != null) {
+                    eventEmitter.concurrentPlaybackCheck();
+                }
+            }
+        };
+        concurrentPlaybackCheckTimer.schedule(concurrentPlaybackCheckTask, interval * 1000,interval * 1000);
+    }
+
+    private void initializeMediaSession() {
+        if(exoPlayerView != null && playerControlView != null){
+            mediaSession = new ExoPlayerMediaSession(getContext());
+            mediaSessionConnector = new MediaSessionConnector(mediaSession);
+            mediaSessionConnector.setPlayer(player);
+
+            TimelineQueueNavigator timelineQueueNavigator = new TimelineQueueNavigator(mediaSession) {
+                @Override
+                public MediaDescriptionCompat getMediaDescription(Player player, int windowIndex) {
+                    return new MediaDescriptionCompat.Builder()
+                    .setTitle(player.getMediaMetadata().title)
+                    .setDescription(player.getMediaMetadata().artist)
+                    .build();
+                }
+                @Override
+                public long getSupportedQueueNavigatorActions(Player player) {
+                    if(!isBackgroundTaskEnabled){
+                        return 0;
+                    }
+                    return PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS | PlaybackStateCompat.ACTION_SKIP_TO_NEXT;
+                }
+                @Override
+                public void onSkipToPrevious(Player player) {
+                    if (isBackgroundTaskEnabled && isInBackground) {
+                        Intent backgroundIntent = new Intent(themedReactContext, ReactExoplayerBackgroundTask.class);
+                        backgroundIntent.putExtra("type", "onPrevious");
+                        themedReactContext.startService(backgroundIntent);
+                        HeadlessJsTaskService.acquireWakeLockNow(themedReactContext);
+                    } else {
+                        eventEmitter.previous();
+                    }
+                }
+                public void onSkipToNext(Player player) {
+                    if (isBackgroundTaskEnabled && isInBackground) {
+                        Intent backgroundIntent = new Intent(themedReactContext, ReactExoplayerBackgroundTask.class);
+                        backgroundIntent.putExtra("type", "onNext");
+                        themedReactContext.startService(backgroundIntent);
+                        HeadlessJsTaskService.acquireWakeLockNow(themedReactContext);
+                    } else {
+                        eventEmitter.next();
+                    }
+                }
+            };
+
+            mediaSessionConnector.setQueueNavigator(timelineQueueNavigator);
+            mediaSessionConnector.invalidateMediaSessionPlaybackState();
+            mediaSession.initialize(player);
+            mediaSession.setEnableBackForwardButton(this.isBackgroundTaskEnabled);
+        }
     }
 
     private DrmSessionManager buildDrmSessionManager(UUID uuid, String licenseUrl, String[] keyRequestPropertiesArray) throws UnsupportedDrmException {
@@ -812,12 +1012,25 @@ class ReactExoplayerView extends FrameLayout implements
     }
 
     private void releasePlayer() {
+        if(concurrentPlaybackCheckTimer != null) {
+            concurrentPlaybackCheckTimer.cancel();
+            concurrentPlaybackCheckTimer = null;
+        }
         if (player != null) {
             updateResumePosition();
             player.release();
             player.removeListener(this);
             trackSelector = null;
             player = null;
+        }
+        setAutoEnterPictureInPictureMode();
+        clearMediaInfo();
+        try {
+          themedReactContext.unregisterReceiver(notificationControlReceiver);
+          themedReactContext.unregisterReceiver(leaveReceiver);
+          themedReactContext.unregisterReceiver(pipReceiver);
+        } catch (Exception ignore) {
+          // ignore if already unregistered
         }
         progressHandler.removeMessages(SHOW_PROGRESS);
         themedReactContext.removeLifecycleEventListener(this);
@@ -1010,6 +1223,7 @@ class ReactExoplayerView extends FrameLayout implements
                 text += "ready";
                 eventEmitter.ready();
                 onBuffering(false);
+                clearProgressMessageHandler();
                 startProgressHandler();
                 videoLoaded();
                 if (selectTrackWhenReady && isUsingContentResolution) {
@@ -1024,9 +1238,20 @@ class ReactExoplayerView extends FrameLayout implements
                 break;
             case Player.STATE_ENDED:
                 text += "ended";
-                eventEmitter.end();
-                onStopPlayback();
-                setKeepScreenOn(false);
+                if (isBackgroundTaskEnabled && isInBackground) {
+                    Intent backgroundIntent = new Intent(themedReactContext, ReactExoplayerBackgroundTask.class);
+                    backgroundIntent.putExtra("type", "onNext");
+                    try {
+                        themedReactContext.startService(backgroundIntent);
+                        HeadlessJsTaskService.acquireWakeLockNow(themedReactContext);
+                    } catch (Exception ignore) {
+                        // ignore
+                    }
+                } else {
+                    eventEmitter.end();
+                    onStopPlayback();
+                    setKeepScreenOn(false);
+                }
                 break;
             default:
                 text += "unknown";
@@ -1071,6 +1296,13 @@ class ReactExoplayerView extends FrameLayout implements
             WritableArray audioTrackInfo = getAudioTrackInfo();
             WritableArray textTrackInfo = getTextTrackInfo();
             int trackRendererIndex = getTrackRendererIndex(C.TRACK_TYPE_VIDEO);
+
+            initializeMediaSession();
+
+            if(startPosition != 0) {
+                seekTo(startPosition * 1000);
+            }
+            setPlayWhenReady(!isPaused);
 
             ExecutorService es = Executors.newSingleThreadExecutor();
             es.execute(new Runnable() {
@@ -1317,6 +1549,7 @@ class ReactExoplayerView extends FrameLayout implements
     @Override
     public void onIsPlayingChanged(boolean isPlaying) {
         eventEmitter.playbackStateChanged(isPlaying);
+        setAutoEnterPictureInPictureMode();
     }
 
     @Override
@@ -1413,6 +1646,21 @@ class ReactExoplayerView extends FrameLayout implements
 
     public void setProgressUpdateInterval(final float progressUpdateInterval) {
         mProgressUpdateInterval = progressUpdateInterval;
+    }
+
+    public void setMediaInfo(String title, String artist, String channelName, String artwork) {
+        if (mediaSession != null) {
+            mediaSession.setMediaInfo(getContext(), title, artist, channelName, artwork);
+        }
+    }
+
+    public void clearMediaInfo() {
+        if (player != null) {
+            player.stop();
+        }
+        if (mediaSession != null) {
+            mediaSession.clearMediaInfo();
+        }
     }
 
     public void setReportBandwidth(boolean reportBandwidth) {
@@ -1731,12 +1979,18 @@ class ReactExoplayerView extends FrameLayout implements
 
     public void setMinLoadRetryCountModifier(int newMinLoadRetryCount) {
         minLoadRetryCount = newMinLoadRetryCount;
+        if(!isAttachedToWindow){
+          return;
+        }
         releasePlayer();
         initializePlayer();
     }
 
     public void setPlayInBackground(boolean playInBackground) {
         this.playInBackground = playInBackground;
+        if (mediaSession != null) {
+            mediaSession.updateNotification();
+        }
     }
 
     public void setDisableFocus(boolean disableFocus) {
@@ -1764,6 +2018,26 @@ class ReactExoplayerView extends FrameLayout implements
 
     public void setContentStartTime(int contentStartTime) {
         this.contentStartTime = (long)contentStartTime;
+    }
+
+    public void setStartPosition(int startPosition) {
+        this.startPosition = startPosition;
+    }
+
+    public void setConcurrentPlaybackCheckInterval(int concurrentPlaybackCheckInterval) {
+        startConcurrentPlaybackCheckTask(concurrentPlaybackCheckInterval);
+    }
+
+    public void setIsBackgroundTaskEnabled(boolean isBackgroundTaskEnabled) {
+        this.isBackgroundTaskEnabled = isBackgroundTaskEnabled;
+
+        if (mediaSession != null) {
+            mediaSession.setEnableBackForwardButton(isBackgroundTaskEnabled);
+        }
+    }
+
+    public void setIsConcurrentPlaybackCheckTimerEnabled(boolean isConcurrentPlaybackCheckTimerEnabled) {
+        this.isConcurrentPlaybackCheckTimerEnabled = isConcurrentPlaybackCheckTimerEnabled;
     }
 
     public void setDisableBuffering(boolean disableBuffering) {
@@ -1837,6 +2111,16 @@ class ReactExoplayerView extends FrameLayout implements
         updateFullScreenButtonVisbility();
     }
 
+    public void setFullscreenV2(boolean fullscreen) {
+      this.isFullscreenV2 = fullscreen;
+      this.setAutoEnterPictureInPictureMode();
+      if (fullscreen) {
+        Intent intent = new Intent(themedReactContext, ExoplayerFullscreenActivity.class);
+        intent.putExtra("componentId", this.getId());
+        ExoPlayerView.globalExoPlayerView = exoPlayerView;
+        themedReactContext.startActivity(intent);
+      }
+    }
     public void setUseTextureView(boolean useTextureView) {
         boolean finallyUseTextureView = useTextureView && this.drmUUID == null;
         exoPlayerView.setUseTextureView(finallyUseTextureView);
@@ -1916,5 +2200,55 @@ class ReactExoplayerView extends FrameLayout implements
 
     public void setSubtitleStyle(SubtitleStyle style) {
         exoPlayerView.setSubtitleStyle(style);
+    }
+
+    /**
+     * Handling pip prop.
+     *
+     * @param pictureInPicture  Pip prop, if true, enter PIP mode.
+     */
+    public void setPictureInPicture(boolean pictureInPicture) {
+        this.isPictureInPictureEnabled = pictureInPicture;
+        setAutoEnterPictureInPictureMode();
+    }
+
+    public void setAutoEnterPictureInPictureMode() {
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.S){
+            return;
+        }
+        boolean isAutoPip = player != null && player.isPlaying() && this.isPictureInPictureEnabled && (!this.isFullscreenV2 || ExoPlayerView.fullscreenLayout != null);
+        Activity activity = themedReactContext.getCurrentActivity();
+        if (activity == null) {
+          return;
+        }
+        activity.setPictureInPictureParams(new PictureInPictureParams.Builder()
+        .setAutoEnterEnabled(isAutoPip)
+        .build());
+    }
+
+    /**
+     * PIP handled, for N devices that support it, not "officially".
+     */
+    public void enterPictureInPictureMode() {
+        PackageManager packageManager = themedReactContext.getPackageManager();
+
+        if (player != null
+            && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+            && packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) {
+            Activity activity = themedReactContext.getCurrentActivity();
+
+            try {
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S){
+                    return;
+                }
+                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O){
+                    PictureInPictureParams.Builder params = new PictureInPictureParams.Builder();
+                    activity.enterPictureInPictureMode(params.build());
+                }
+                else {
+                    activity.enterPictureInPictureMode();
+                }
+            } catch (IllegalStateException ignore){}
+        }
     }
 }

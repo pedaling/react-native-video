@@ -49,6 +49,8 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_PAUSED = "paused";
     private static final String PROP_MUTED = "muted";
     private static final String PROP_VOLUME = "volume";
+    private static final String PROP_FULLSCREEN = "fullscreen";
+    private static final String PROP_FULLSCREEN_V2 = "fullscreenV2";
     private static final String PROP_BACK_BUFFER_DURATION_MS = "backBufferDurationMs";
     private static final String PROP_BUFFER_CONFIG = "bufferConfig";
     private static final String PROP_BUFFER_CONFIG_MIN_BUFFER_MS = "minBufferMs";
@@ -71,7 +73,6 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_DISABLE_BUFFERING = "disableBuffering";
     private static final String PROP_DISABLE_DISCONNECT_ERROR = "disableDisconnectError";
     private static final String PROP_FOCUSABLE = "focusable";
-    private static final String PROP_FULLSCREEN = "fullscreen";
     private static final String PROP_USE_TEXTURE_VIEW = "useTextureView";
     private static final String PROP_SECURE_VIEW = "useSecureView";
     private static final String PROP_SELECTED_VIDEO_TRACK = "selectedVideoTrack";
@@ -79,8 +80,19 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
     private static final String PROP_SELECTED_VIDEO_TRACK_VALUE = "value";
     private static final String PROP_HIDE_SHUTTER_VIEW = "hideShutterView";
     private static final String PROP_CONTROLS = "controls";
+    private static final String PROP_PICTURE_IN_PICTURE = "pictureInPicture";
+    private static final String PROP_START_POSITION = "startPosition";
+    private static final String PROP_CONCURRENT_PLAYBACK_CHECK_INTERVAL = "concurrentPlaybackCheckInterval";
+    private static final String PROP_IS_BACKGROUND_TASK_ENABLED = "isAndroidBackgroundTaskEnabled";
+    private static final String PROP_IS_CONCURRENT_PLAYBACK_CHECK_TIMER_ENABLED = "isAndroidConcurrentPlaybackCheckTimerEnabled";
 
     private static final String PROP_SUBTITLE_STYLE = "subtitleStyle";
+
+    private static final String PROP_MEDIA_INFO = "mediaInfo";
+    private static final String PROP_MEDIA_INFO_TITLE = "title";
+    private static final String PROP_MEDIA_INFO_ARTIST = "artist";
+    private static final String PROP_MEDIA_INFO_CHANNEL_NAME = "channelName";
+    private static final String PROP_MEDIA_INFO_ARTWORK = "artwork";
 
     private ReactExoplayerConfig config;
 
@@ -187,6 +199,21 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
                 videoView.clearSrc();
             }
         }
+    }
+
+    @ReactProp(name = PROP_MEDIA_INFO)
+    public void setMediaInfo(final ReactExoplayerView videoView, @Nullable ReadableMap mediaInfo) {
+        if (mediaInfo == null) {
+            videoView.clearMediaInfo();
+            return;
+        }
+
+        String title = mediaInfo.hasKey(PROP_MEDIA_INFO_TITLE) ? mediaInfo.getString(PROP_MEDIA_INFO_TITLE) : null;
+        String artist = mediaInfo.hasKey(PROP_MEDIA_INFO_ARTIST) ? mediaInfo.getString(PROP_MEDIA_INFO_ARTIST) : null;
+        String channelName = mediaInfo.hasKey(PROP_MEDIA_INFO_CHANNEL_NAME) ? mediaInfo.getString(PROP_MEDIA_INFO_CHANNEL_NAME) : null;
+        String artwork = mediaInfo.hasKey(PROP_MEDIA_INFO_ARTWORK) ? mediaInfo.getString(PROP_MEDIA_INFO_ARTWORK) : null;
+
+        videoView.setMediaInfo(title, artist, channelName, artwork);
     }
 
     @ReactProp(name = PROP_RESIZE_MODE)
@@ -337,6 +364,11 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
         videoView.setFullscreen(fullscreen);
     }
 
+    @ReactProp(name = PROP_FULLSCREEN_V2, defaultBoolean = false)
+    public void setFullscreenV2(final ReactExoplayerView videoView, final boolean fullscreen) {
+        videoView.setFullscreenV2(fullscreen);
+    }
+
     @ReactProp(name = PROP_USE_TEXTURE_VIEW, defaultBoolean = true)
     public void setUseTextureView(final ReactExoplayerView videoView, final boolean useTextureView) {
         videoView.setUseTextureView(useTextureView);
@@ -389,6 +421,31 @@ public class ReactExoplayerViewManager extends ViewGroupManager<ReactExoplayerVi
                     ? bufferConfig.getDouble(PROP_BUFFER_CONFIG_MIN_BUFFER_MEMORY_RESERVE_PERCENT) : minBufferMemoryReservePercent;
             videoView.setBufferConfig(minBufferMs, maxBufferMs, bufferForPlaybackMs, bufferForPlaybackAfterRebufferMs, maxHeapAllocationPercent, minBackBufferMemoryReservePercent, minBufferMemoryReservePercent);
         }
+    }
+
+    @ReactProp(name = PROP_PICTURE_IN_PICTURE, defaultBoolean = false)
+    public void setPictureInPicture(final ReactExoplayerView videoView, final boolean pictureInPicture) {
+        videoView.setPictureInPicture(pictureInPicture);
+    }
+
+    @ReactProp(name = PROP_START_POSITION, defaultInt = 0)
+    public void setStartPosition(final ReactExoplayerView videoView, final int startPosition) {
+      videoView.setStartPosition(startPosition);
+    }
+
+    @ReactProp(name = PROP_CONCURRENT_PLAYBACK_CHECK_INTERVAL)
+    public void setConcurrentPlaybackCheckInterval(final ReactExoplayerView videoView, final int concurrentPlaybackCheckInterval) {
+      videoView.setConcurrentPlaybackCheckInterval(concurrentPlaybackCheckInterval);
+    }
+
+    @ReactProp(name = PROP_IS_BACKGROUND_TASK_ENABLED)
+    public void setIsBackgroundTaskEnabled(final ReactExoplayerView videoView, final boolean isBackgroundTaskEnabled) {
+        videoView.setIsBackgroundTaskEnabled(isBackgroundTaskEnabled);
+    }
+  
+    @ReactProp(name = PROP_IS_CONCURRENT_PLAYBACK_CHECK_TIMER_ENABLED)
+    public void setIsConcurrentPlaybackCheckTimerEnabled(final ReactExoplayerView videoView, final boolean isConcurrentPlaybackCheckTimerEnabled) {
+        videoView.setIsConcurrentPlaybackCheckTimerEnabled(isConcurrentPlaybackCheckTimerEnabled);
     }
 
     private boolean startsWithValidScheme(String uriString) {

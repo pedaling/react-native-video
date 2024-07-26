@@ -126,7 +126,9 @@ class RCTResourceLoaderDelegate: NSObject, AVAssetResourceLoaderDelegate, URLSes
         
         var promise: Promise<Data>
         if _onGetLicense != nil {
-            let contentId = _drm.contentId ?? loadingRequest.request.url?.host
+            guard let contentId = _drm.contentId ?? loadingRequest.request.url?.absoluteString.replacingOccurrences(of: "skd://", with:"") else {
+                return false
+            }
             promise = RCTVideoDRM.handleWithOnGetLicense(
                 loadingRequest:loadingRequest,
                 contentId:contentId,

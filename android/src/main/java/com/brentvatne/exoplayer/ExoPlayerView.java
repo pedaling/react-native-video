@@ -3,8 +3,9 @@ package com.brentvatne.exoplayer;
 import android.annotation.TargetApi;
 import android.content.Context;
 import androidx.core.content.ContextCompat;
+
+import android.text.Layout;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.SurfaceView;
@@ -29,7 +30,9 @@ import java.util.List;
 
 @TargetApi(16)
 public final class ExoPlayerView extends FrameLayout {
+    public static ExoPlayerView globalExoPlayerView;
 
+    public static FrameLayout fullscreenLayout;
     private View surfaceView;
     private final View shutterView;
     private final SubtitleView subtitleLayout;
@@ -53,6 +56,8 @@ public final class ExoPlayerView extends FrameLayout {
 
     public ExoPlayerView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
+
+        ExoPlayerView.globalExoPlayerView = this;
 
         this.context = context;
 
@@ -83,7 +88,7 @@ public final class ExoPlayerView extends FrameLayout {
         layout.addView(shutterView, 1, layoutParams);
         layout.addView(subtitleLayout, 2, layoutParams);
 
-        addViewInLayout(layout, 0, aspectRatioParams);
+        addLayoutInView();
     }
 
     private void clearVideoView() {
@@ -94,7 +99,19 @@ public final class ExoPlayerView extends FrameLayout {
         }
     }
 
-    private void setVideoView() {
+  @Override
+  protected void onDetachedFromWindow() {
+    super.onDetachedFromWindow();
+    if (ExoPlayerView.fullscreenLayout != null) {
+      ExoPlayerView.fullscreenLayout.removeView(layout);
+    }
+
+    if (ExoPlayerView.globalExoPlayerView == this) {
+      ExoPlayerView.globalExoPlayerView = null;
+    }
+  }
+
+  private void setVideoView() {
         if (surfaceView instanceof TextureView) {
             player.setVideoTextureView((TextureView) surfaceView);
         } else if (surfaceView instanceof SurfaceView) {
@@ -133,6 +150,36 @@ public final class ExoPlayerView extends FrameLayout {
         if (this.player != null) {
             setVideoView();
         }
+    }
+
+    public void attachFullscreenView(FrameLayout frameLayout) {
+      ExoPlayerView.fullscreenLayout = frameLayout;
+      this.removeView(layout);
+
+      addLayoutInView();
+    }
+
+    public void detachFullscreenView() {
+      ExoPlayerView.fullscreenLayout.removeView(layout);
+      ExoPlayerView.fullscreenLayout = null;
+      addLayoutInView();
+
+      layout.layout(0, 0, getWidth(), getHeight());
+      surfaceView.layout(0, 0, getWidth(), getHeight());
+    }
+
+    private void addLayoutInView() {
+      if (ExoPlayerView.fullscreenLayout != null) {
+        ExoPlayerView.fullscreenLayout.addView(layout);
+        return;
+      }
+      FrameLayout.LayoutParams aspectRatioParams = new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams.MATCH_PARENT,
+        FrameLayout.LayoutParams.MATCH_PARENT);
+
+      layout.setLayoutParams(aspectRatioParams);
+      aspectRatioParams.gravity = Gravity.CENTER;
+      addViewInLayout(layout, 0, aspectRatioParams);
     }
 
     private void updateShutterViewVisibility() {

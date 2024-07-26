@@ -17,6 +17,7 @@ package com.brentvatne.exoplayer;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.widget.FrameLayout;
 
 /**
@@ -104,6 +105,7 @@ public final class AspectRatioFrameLayout extends FrameLayout {
         int measuredHeight = getMeasuredHeight();
         int width = measuredWidth;
         int height = measuredHeight;
+      Log.d("AspectRatioFrameLayout", "onMeasure: " + width + " " + height);
 
         float viewAspectRatio = (float) measuredWidth / measuredHeight;
         float aspectDeformation = videoAspectRatio / viewAspectRatio - 1;

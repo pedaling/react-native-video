@@ -1,11 +1,23 @@
-import React, { Component } from 'react';
+import { ImagePropTypes, ViewPropTypes } from 'deprecated-react-native-prop-types';
 import PropTypes from 'prop-types';
-import { StyleSheet, requireNativeComponent, NativeModules, UIManager, View, Image, Platform, findNodeHandle } from 'react-native';
-import { ViewPropTypes, ImagePropTypes } from 'deprecated-react-native-prop-types';
+import React, { Component } from 'react';
+import {
+  AppRegistry,
+  Image,
+  NativeModules,
+  Platform,
+  StyleSheet,
+  UIManager,
+  View,
+  findNodeHandle,
+  requireNativeComponent,
+} from 'react-native';
 import resolveAssetSource from 'react-native/Libraries/Image/resolveAssetSource';
-import TextTrackType from './TextTrackType';
-import FilterType from './FilterType';
+import { createPortal } from 'react-native/Libraries/Renderer/shims/ReactNative';
 import DRMType from './DRMType';
+import FilterType from './FilterType';
+import { fullscreenHandlers } from './FullscreenContainer';
+import TextTrackType from './TextTrackType';
 import VideoResizeMode from './VideoResizeMode.js';
 
 const styles = StyleSheet.create({
@@ -14,29 +26,61 @@ const styles = StyleSheet.create({
   },
 });
 
-const { VideoDecoderProperties } = NativeModules
-export { TextTrackType, FilterType, DRMType, VideoDecoderProperties }
+const { VideoDecoderProperties, FullscreenControl } = NativeModules;
+export { TextTrackType, FilterType, DRMType, VideoDecoderProperties };
 
+let portalId = null;
 export default class Video extends Component {
-
   constructor(props) {
     super(props);
 
     this.state = {
-      showPoster: !!props.poster,
+      showPoster: Boolean(props.poster),
+      portalContainerId: portalId,
     };
+    if (this.props.isAndroidBackgroundTaskEnabled && Platform.OS === 'android') {
+      this._registerBackgroundTask();
+    }
+  }
+
+  getIsFullscreenV2 = () => Boolean(this.state.portalContainerId);
+
+  registerFullscreenHandler = () => {
+    fullscreenHandlers.current = {
+      enter: viewId => {
+        portalId = viewId;
+        this.setState({
+          portalContainerId: viewId,
+        });
+      },
+      exit: () => {
+        this.dismissFullscreenV2();
+      },
+    };
+  };
+
+  unregisterFullscreenHandler = () => {
+    fullscreenHandlers.current = null;
+  };
+
+  componentDidMount() {
+    if (portalId) {
+      this.registerFullscreenHandler();
+    }
+  }
+
+  componentWillUnmount() {
+    this.unregisterFullscreenHandler();
   }
 
   setNativeProps(nativeProps) {
-    this._root.setNativeProps(nativeProps);
+    this._root?.setNativeProps(nativeProps);
   }
 
   toTypeString(x) {
     switch (typeof x) {
       case 'object':
-        return x instanceof Date
-          ? x.toISOString()
-          : JSON.stringify(x); // object, null
+        return x instanceof Date ? x.toISOString() : JSON.stringify(x); // object, null
       case 'undefined':
         return '';
       default: // boolean, number, string
@@ -55,7 +99,9 @@ export default class Video extends Component {
   }
 
   seek = (time, tolerance = 100) => {
-    if (isNaN(time)) {throw new Error('Specified time is not a number');}
+    if (isNaN(time)) {
+      throw new Error('Specified time is not a number');
+    }
 
     if (Platform.OS === 'ios') {
       this.setNativeProps({
@@ -69,6 +115,19 @@ export default class Video extends Component {
     }
   };
 
+  _registerBackgroundTask = () => {
+    const onNext = () => new Promise(resolve => resolve(this._onPressNext()));
+    const onPrevious = () => new Promise(resolve => resolve(this._onPressPrevious()));
+    const onLoad = event => new Promise(resolve => resolve(this.props.onLoad(event)));
+    const onConcurrentPlaybackCheck = event =>
+      new Promise(resolve => resolve(this.props.onConcurrentPlaybackCheck(event)));
+
+    AppRegistry.registerHeadlessTask('onNext', () => onNext);
+    AppRegistry.registerHeadlessTask('onPrevious', () => onPrevious);
+    AppRegistry.registerHeadlessTask('onLoad', () => onLoad);
+    AppRegistry.registerHeadlessTask('onConcurrentPlaybackCheck', () => onConcurrentPlaybackCheck);
+  };
+
   presentFullscreenPlayer = () => {
     this.setNativeProps({ fullscreen: true });
   };
@@ -77,15 +136,36 @@ export default class Video extends Component {
     this.setNativeProps({ fullscreen: false });
   };
 
-  save = async (options?) => {
-    return await NativeModules.VideoManager.save(options, findNodeHandle(this._root));
-  }
+  presentFullscreenV2 = () => {
+    this.registerFullscreenHandler();
+    if (!this._root) {
+      throw new Error('Native Ref Not Ready');
+    }
+    this.setNativeProps({ fullscreenV2: true });
+  };
 
-  restoreUserInterfaceForPictureInPictureStopCompleted = (restored) => {
+  dismissFullscreenV2 = () => {
+    this.setState(
+      {
+        portalContainerId: null,
+      },
+      () => {
+        portalId = null;
+        if (FullscreenControl) {
+          FullscreenControl.requestFullscreenClose();
+        }
+        this.setNativeProps({ fullscreenV2: false });
+      }
+    );
+  };
+
+  save = async options => await NativeModules.VideoManager.save(options, findNodeHandle(this._root));
+
+  restoreUserInterfaceForPictureInPictureStopCompleted = restored => {
     this.setNativeProps({ restoreUserInterfaceForPIPStopCompletionHandler: restored });
   };
 
-  _assignRoot = (component) => {
+  _assignRoot = component => {
     this._root = component;
   };
 
@@ -93,91 +173,107 @@ export default class Video extends Component {
     if (this.state.showPoster) {
       this.setState({ showPoster: false });
     }
-  }
+  };
 
-  _onLoadStart = (event) => {
+  _onLoadStart = event => {
     if (this.props.onLoadStart) {
       this.props.onLoadStart(event.nativeEvent);
     }
   };
 
-  _onPlaybackStateChanged = (event) => {
+  _onPlaybackStateChanged = event => {
     if (this.props.onPlaybackStateChanged) {
       this.props.onPlaybackStateChanged(event.nativeEvent);
     }
   };
 
-  _onLoad = (event) => {
+  _onLoad = event => {
     // Need to hide poster here for windows as onReadyForDisplay is not implemented
     if (Platform.OS === 'windows') {
       this._hidePoster();
     }
     if (this.props.onLoad) {
-      this.props.onLoad(event.nativeEvent);
+      if (this.props.isAndroidBackgroundTaskEnabled && Platform.OS === 'android') {
+        AppRegistry.startHeadlessTask(0, 'onLoad', event.nativeEvent);
+      } else {
+        this.props.onLoad(event.nativeEvent);
+      }
     }
   };
 
-  _onError = (event) => {
+  _onError = event => {
     if (this.props.onError) {
       this.props.onError(event.nativeEvent);
     }
   };
 
-  _onProgress = (event) => {
+  _onPressPrevious = () => {
+    if (this.props.onPressPrevious) {
+      this.props.onPressPrevious();
+    }
+  };
+
+  _onPressNext = () => {
+    if (this.props.onPressNext) {
+      this.props.onPressNext();
+    }
+  };
+
+  _onProgress = event => {
     if (this.props.onProgress) {
       this.props.onProgress(event.nativeEvent);
     }
   };
 
-  _onBandwidthUpdate = (event) => {
+  _onBandwidthUpdate = event => {
     if (this.props.onBandwidthUpdate) {
       this.props.onBandwidthUpdate(event.nativeEvent);
     }
   };
 
-  _onSeek = (event) => {
+  _onSeek = event => {
     if (this.props.onSeek) {
       this.props.onSeek(event.nativeEvent);
     }
   };
 
-  _onEnd = (event) => {
+  _onEnd = event => {
     if (this.props.onEnd) {
       this.props.onEnd(event.nativeEvent);
     }
   };
 
-  _onTimedMetadata = (event) => {
+  _onTimedMetadata = event => {
     if (this.props.onTimedMetadata) {
       this.props.onTimedMetadata(event.nativeEvent);
     }
   };
 
-  _onFullscreenPlayerWillPresent = (event) => {
+  _onFullscreenPlayerWillPresent = event => {
     if (this.props.onFullscreenPlayerWillPresent) {
       this.props.onFullscreenPlayerWillPresent(event.nativeEvent);
     }
   };
 
-  _onFullscreenPlayerDidPresent = (event) => {
+  _onFullscreenPlayerDidPresent = event => {
     if (this.props.onFullscreenPlayerDidPresent) {
       this.props.onFullscreenPlayerDidPresent(event.nativeEvent);
     }
   };
 
-  _onFullscreenPlayerWillDismiss = (event) => {
+  _onFullscreenPlayerWillDismiss = event => {
     if (this.props.onFullscreenPlayerWillDismiss) {
       this.props.onFullscreenPlayerWillDismiss(event.nativeEvent);
     }
   };
 
-  _onFullscreenPlayerDidDismiss = (event) => {
+  _onFullscreenPlayerDidDismiss = event => {
     if (this.props.onFullscreenPlayerDidDismiss) {
       this.props.onFullscreenPlayerDidDismiss(event.nativeEvent);
     }
   };
 
-  _onReadyForDisplay = (event) => {
+  _onReadyForDisplay = event => {
     if (!this.props.audioOnly) {
       this._hidePoster();
     }
@@ -187,29 +283,38 @@ export default class Video extends Component {
     }
   };
 
-  _onPlaybackStalled = (event) => {
+  _onPlaybackStalled = event => {
     if (this.props.onPlaybackStalled) {
       this.props.onPlaybackStalled(event.nativeEvent);
     }
   };
 
-  _onPlaybackResume = (event) => {
+  _onPlaybackResume = event => {
     if (this.props.onPlaybackResume) {
       this.props.onPlaybackResume(event.nativeEvent);
     }
   };
 
-  _onPlaybackRateChange = (event) => {
+  _onPlaybackRateChange = event => {
     if (this.props.onPlaybackRateChange) {
       this.props.onPlaybackRateChange(event.nativeEvent);
     }
   };
 
-  _onExternalPlaybackChange = (event) => {
+  _onExternalPlaybackChange = event => {
     if (this.props.onExternalPlaybackChange) {
       this.props.onExternalPlaybackChange(event.nativeEvent);
     }
-  }
+  };
+
+  _onFullscreenV2Closed = event => {
+    if (this.state.portalContainerId !== null) {
+      this.dismissFullscreenV2();
+    }
+    if (this.props.onFullscreenV2Closed) {
+      this.props.onFullscreenV2Closed(event.nativeEvent);
+    }
+  };
 
   _onAudioBecomingNoisy = () => {
     if (this.props.onAudioBecomingNoisy) {
@@ -217,50 +322,66 @@ export default class Video extends Component {
     }
   };
 
-  _onPictureInPictureStatusChanged = (event) => {
+  _onPictureInPictureStatusChanged = event => {
     if (this.props.onPictureInPictureStatusChanged) {
       this.props.onPictureInPictureStatusChanged(event.nativeEvent);
     }
   };
 
-  _onRestoreUserInterfaceForPictureInPictureStop = (event) => {
+  _onRestoreUserInterfaceForPictureInPictureStop = event => {
     if (this.props.onRestoreUserInterfaceForPictureInPictureStop) {
       this.props.onRestoreUserInterfaceForPictureInPictureStop();
     }
   };
 
-  _onAudioFocusChanged = (event) => {
+  _onAudioFocusChanged = event => {
     if (this.props.onAudioFocusChanged) {
       this.props.onAudioFocusChanged(event.nativeEvent);
     }
   };
 
-  _onBuffer = (event) => {
+  _onBuffer = event => {
     if (this.props.onBuffer) {
       this.props.onBuffer(event.nativeEvent);
     }
   };
 
-  _onGetLicense = (event) => {
+  _onConcurrentPlaybackCheck = event => {
+    if (this.props.onConcurrentPlaybackCheck) {
+      if (this.props.isAndroidConcurrentPlaybackCheckTimerEnabled && Platform.OS === 'android') {
+        AppRegistry.startHeadlessTask(0, 'onConcurrentPlaybackCheck', event.nativeEvent);
+      } else {
+        this.props.onConcurrentPlaybackCheck();
+      }
+    }
+  };
+
+  _onGetLicense = event => {
     if (this.props.drm && this.props.drm.getLicense instanceof Function) {
       const data = event.nativeEvent;
       if (data && data.spcBase64) {
         const getLicenseOverride = this.props.drm.getLicense(data.spcBase64, data.contentId, data.licenseUrl);
         const getLicensePromise = Promise.resolve(getLicenseOverride); // Handles both scenarios, getLicenseOverride being a promise and not.
-        getLicensePromise.then((result => {
-          if (result !== undefined) {
-            NativeModules.VideoManager.setLicenseResult(result, findNodeHandle(this._root));
-          } else {
-            NativeModules.VideoManager.setLicenseError && NativeModules.VideoManager.setLicenseError('Empty license result', findNodeHandle(this._root));
-          }
-        })).catch((error) => {
-          NativeModules.VideoManager.setLicenseError && NativeModules.VideoManager.setLicenseError(error, findNodeHandle(this._root));
-        });
+        getLicensePromise
+          .then(result => {
+            if (result !== undefined) {
+              NativeModules.VideoManager.setLicenseResult(result, findNodeHandle(this._root));
+            } else {
+              NativeModules.VideoManager.setLicenseError &&
+                NativeModules.VideoManager.setLicenseError('Empty license result', findNodeHandle(this._root));
+            }
+          })
+          .catch(error => {
+            NativeModules.VideoManager.setLicenseError &&
+              NativeModules.VideoManager.setLicenseError(error, findNodeHandle(this._root));
+          });
       } else {
-        NativeModules.VideoManager.setLicenseError && NativeModules.VideoManager.setLicenseError('No spc received', findNodeHandle(this._root));
+        NativeModules.VideoManager.setLicenseError &&
+          NativeModules.VideoManager.setLicenseError('No spc received', findNodeHandle(this._root));
       }
     }
-  }
+  };
+
   getViewManagerConfig = viewManagerName => {
     if (!UIManager.getViewManagerConfig) {
       return UIManager[viewManagerName];
@@ -269,7 +390,7 @@ export default class Video extends Component {
   };
 
   render() {
-    const resizeMode = this.props.resizeMode;
+    const { resizeMode, renderController } = this.props;
     const source = resolveAssetSource(this.props.source) || {};
     const shouldCache = !source.__packager_asset;
 
@@ -279,15 +400,16 @@ export default class Video extends Component {
     }
 
     if (!uri) {
+      // eslint-disable-next-line no-console
       console.log('Trying to load empty source.');
     }
 
-    const isNetwork = !!(uri && uri.match(/^https?:/i));
-    const isAsset = !!(uri && uri.match(/^(assets-library|ph|ipod-library|file|content|ms-appx|ms-appdata):/i));
+    const isNetwork = Boolean(uri && uri.match(/^https?:/i));
+    const isAsset = Boolean(uri && uri.match(/^(assets-library|ph|ipod-library|file|content|ms-appx|ms-appdata):/i));
 
     if ((uri || uri === '') && !isNetwork && !isAsset) {
       if (this.props.onError) {
-        this.props.onError({error: {errorString: 'invalid url, player will stop', errorCode: 'INVALID_URL'}});
+        this.props.onError({ error: { errorString: 'invalid url, player will stop', errorCode: 'INVALID_URL' } });
       }
     }
 
@@ -326,6 +448,7 @@ export default class Video extends Component {
       onVideoSeek: this._onSeek,
       onVideoEnd: this._onEnd,
       onVideoBuffer: this._onBuffer,
+      onVideoConcurrentPlaybackCheck: this._onConcurrentPlaybackCheck,
       onVideoBandwidthUpdate: this._onBandwidthUpdate,
       onTimedMetadata: this._onTimedMetadata,
       onVideoAudioBecomingNoisy: this._onAudioBecomingNoisy,
@@ -334,6 +457,7 @@ export default class Video extends Component {
       onVideoFullscreenPlayerDidPresent: this._onFullscreenPlayerDidPresent,
       onVideoFullscreenPlayerWillDismiss: this._onFullscreenPlayerWillDismiss,
       onVideoFullscreenPlayerDidDismiss: this._onFullscreenPlayerDidDismiss,
+      onFullscreenV2Closed: this._onFullscreenV2Closed,
       onReadyForDisplay: this._onReadyForDisplay,
       onPlaybackStalled: this._onPlaybackStalled,
       onPlaybackResume: this._onPlaybackResume,
@@ -343,6 +467,8 @@ export default class Video extends Component {
       onGetLicense: nativeProps.drm && nativeProps.drm.getLicense && this._onGetLicense,
       onPictureInPictureStatusChanged: this._onPictureInPictureStatusChanged,
       onRestoreUserInterfaceForPictureInPictureStop: this._onRestoreUserInterfaceForPictureInPictureStop,
+      onPressPrevious: this._onPressPrevious,
+      onPressNext: this._onPressNext,
     });
 
     const posterStyle = {
@@ -352,14 +478,12 @@ export default class Video extends Component {
 
     return (
       <View style={nativeProps.style}>
-        <RCTVideo
-          ref={this._assignRoot}
-          {...nativeProps}
-          style={StyleSheet.absoluteFill}
-        />
-        {this.state.showPoster && (
-          <Image style={posterStyle} source={{ uri: this.props.poster }} />
-        )}
+        <RCTVideo ref={this._assignRoot} {...nativeProps} style={StyleSheet.absoluteFill} />
+        {this.state.showPoster && <Image style={posterStyle} source={{ uri: this.props.poster }} />}
+        {renderController &&
+          (this.state.portalContainerId
+            ? createPortal(renderController({ isFullscreen: true }), this.state.portalContainerId)
+            : renderController({ isFullscreen: false }))}
       </View>
     );
   }
@@ -387,10 +511,7 @@ Video.propTypes = {
   filterEnabled: PropTypes.bool,
   /* Native only */
   src: PropTypes.object,
-  seek: PropTypes.oneOfType([
-    PropTypes.number,
-    PropTypes.object,
-  ]),
+  seek: PropTypes.oneOfType([PropTypes.number, PropTypes.object]),
   fullscreen: PropTypes.bool,
   onVideoLoadStart: PropTypes.func,
   onVideoLoad: PropTypes.func,
@@ -407,6 +528,7 @@ Video.propTypes = {
   onVideoFullscreenPlayerDidPresent: PropTypes.func,
   onVideoFullscreenPlayerWillDismiss: PropTypes.func,
   onVideoFullscreenPlayerDidDismiss: PropTypes.func,
+  onVideoConcurrentPlaybackCheck: PropTypes.func,
 
   /* Wrapper component */
   source: PropTypes.oneOfType([
@@ -417,14 +539,19 @@ Video.propTypes = {
     PropTypes.number,
   ]),
   drm: PropTypes.shape({
-    type: PropTypes.oneOf([
-      DRMType.CLEARKEY, DRMType.FAIRPLAY, DRMType.WIDEVINE, DRMType.PLAYREADY,
-    ]),
+    type: PropTypes.oneOf([DRMType.CLEARKEY, DRMType.FAIRPLAY, DRMType.WIDEVINE, DRMType.PLAYREADY]),
     licenseServer: PropTypes.string,
     headers: PropTypes.shape({}),
     base64Certificate: PropTypes.bool,
     certificateUrl: PropTypes.string,
     getLicense: PropTypes.func,
+  }),
+  mediaInfo: PropTypes.shape({
+    title: PropTypes.string,
+    artist: PropTypes.string,
+    channelName: PropTypes.string,
+    artwork: PropTypes.string,
+    albumTitle: PropTypes.string,
   }),
   localSourceEncryptionKeyScheme: PropTypes.string,
   minLoadRetryCount: PropTypes.number,
@@ -437,34 +564,21 @@ Video.propTypes = {
   allowsExternalPlayback: PropTypes.bool,
   selectedAudioTrack: PropTypes.shape({
     type: PropTypes.string.isRequired,
-    value: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }),
   selectedVideoTrack: PropTypes.shape({
     type: PropTypes.string.isRequired,
-    value: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }),
   selectedTextTrack: PropTypes.shape({
     type: PropTypes.string.isRequired,
-    value: PropTypes.oneOfType([
-      PropTypes.string,
-      PropTypes.number,
-    ]),
+    value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   }),
   textTracks: PropTypes.arrayOf(
     PropTypes.shape({
       title: PropTypes.string,
       uri: PropTypes.string.isRequired,
-      type: PropTypes.oneOf([
-        TextTrackType.SRT,
-        TextTrackType.TTML,
-        TextTrackType.VTT,
-      ]),
+      type: PropTypes.oneOf([TextTrackType.SRT, TextTrackType.TTML, TextTrackType.VTT]),
       language: PropTypes.string.isRequired,
     })
   ),
@@ -481,6 +595,10 @@ Video.propTypes = {
   rate: PropTypes.number,
   pictureInPicture: PropTypes.bool,
   playInBackground: PropTypes.bool,
+  startPosition: PropTypes.number,
+  concurrentPlaybackCheckInterval: PropTypes.number,
+  isAndroidBackgroundTaskEnabled: PropTypes.bool,
+  isAndroidConcurrentPlaybackCheckTimerEnabled: PropTypes.bool,
   preferredForwardBufferDuration: PropTypes.number,
   playWhenInactive: PropTypes.bool,
   ignoreSilentSwitch: PropTypes.oneOf(['ignore', 'obey']),
@@ -528,6 +646,9 @@ Video.propTypes = {
   needsToRestoreUserInterfaceForPictureInPictureStop: PropTypes.func,
   onExternalPlaybackChange: PropTypes.func,
 
+  onPressPrevious: PropTypes.func,
+  onPressNext: PropTypes.func,
+
   /* Required by react-native */
   scaleX: PropTypes.number,
   scaleY: PropTypes.number,
@@ -542,5 +663,6 @@ const RCTVideo = requireNativeComponent('RCTVideo', Video, {
     src: true,
     seek: true,
     fullscreen: true,
+    fullscreenV2: true,
   },
 });

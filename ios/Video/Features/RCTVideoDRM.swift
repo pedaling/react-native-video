@@ -69,9 +69,13 @@ struct RCTVideoDRM {
     static func fetchSpcData(
         loadingRequest: AVAssetResourceLoadingRequest,
         certificateData: Data,
-        contentIdData: Data
+        contentIdData: Data?
     ) -> Promise<Data> {
         return Promise<Data>(on: .global()) { fulfill, reject in
+            guard let contentIdData = contentIdData else {
+                reject(RCTVideoErrorHandler.invalidContentId)
+                return
+            }
             var spcError:NSError!
             var spcData: Data?
             do {
@@ -124,10 +128,6 @@ struct RCTVideoDRM {
         
         return RCTVideoDRM.createCertificateData(certificateStringUrl:certificateUrl, base64Certificate:base64Certificate)
             .then{ certificateData -> Promise<Data> in
-                guard let contentIdData = contentIdData else {
-                    throw RCTVideoError.invalidContentId as! Error
-                }
-                
                 return RCTVideoDRM.fetchSpcData(
                     loadingRequest:loadingRequest,
                     certificateData:certificateData,

@@ -60,6 +60,14 @@ RCT_EXPORT_VIEW_PROPERTY(onGetLicense, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onPictureInPictureStatusChanged, RCTDirectEventBlock);
 RCT_EXPORT_VIEW_PROPERTY(onRestoreUserInterfaceForPictureInPictureStop, RCTDirectEventBlock);
 
+// class101 ReactNativeVideo Props
+RCT_EXPORT_VIEW_PROPERTY(mediaInfo, NSDictionary);
+RCT_EXPORT_VIEW_PROPERTY(onPressPrevious, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(onPressNext, RCTDirectEventBlock);
+RCT_EXPORT_VIEW_PROPERTY(startPosition, int);
+RCT_EXPORT_VIEW_PROPERTY(concurrentPlaybackCheckInterval, int);
+RCT_EXPORT_VIEW_PROPERTY(onVideoConcurrentPlaybackCheck, RCTDirectEventBlock);
+
 RCT_EXTERN_METHOD(save:(NSDictionary *)options
         reactTag:(nonnull NSNumber *)reactTag
         resolver:(RCTPromiseResolveBlock)resolve

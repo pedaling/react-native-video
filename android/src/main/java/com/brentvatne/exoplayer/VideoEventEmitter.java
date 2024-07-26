@@ -1,6 +1,8 @@
 package com.brentvatne.exoplayer;
 
 import androidx.annotation.StringDef;
+
+import android.util.Log;
 import android.view.View;
 
 import com.facebook.react.bridge.Arguments;
@@ -50,6 +52,12 @@ class VideoEventEmitter {
     private static final String EVENT_AUDIO_BECOMING_NOISY = "onVideoAudioBecomingNoisy";
     private static final String EVENT_AUDIO_FOCUS_CHANGE = "onAudioFocusChanged";
     private static final String EVENT_PLAYBACK_RATE_CHANGE = "onPlaybackRateChange";
+    private static final String EVENT_EXTERNAL_PLAYBACK_CHANGE = "onVideoExternalPlaybackChange";
+    private static final String EVENT_FULLSCREEN_V2_CLOSED = "onFullscreenV2Closed";
+    private static final String EVENT_CONCURRENT_PLAYBACK_CHECK = "onVideoConcurrentPlaybackCheck";
+
+    private static final String EVENT_PREVIOUS = "onPressPrevious";
+    private static final String EVENT_NEXT = "onPressNext";
 
     static final String[] Events = {
             EVENT_LOAD_START,
@@ -72,7 +80,12 @@ class VideoEventEmitter {
             EVENT_AUDIO_BECOMING_NOISY,
             EVENT_AUDIO_FOCUS_CHANGE,
             EVENT_PLAYBACK_RATE_CHANGE,
+            EVENT_EXTERNAL_PLAYBACK_CHANGE,
             EVENT_BANDWIDTH,
+            EVENT_PREVIOUS,
+            EVENT_NEXT,
+            EVENT_FULLSCREEN_V2_CLOSED,
+            EVENT_CONCURRENT_PLAYBACK_CHECK
     };
 
     @Retention(RetentionPolicy.SOURCE)
@@ -97,7 +110,12 @@ class VideoEventEmitter {
             EVENT_AUDIO_BECOMING_NOISY,
             EVENT_AUDIO_FOCUS_CHANGE,
             EVENT_PLAYBACK_RATE_CHANGE,
+            EVENT_EXTERNAL_PLAYBACK_CHANGE,
             EVENT_BANDWIDTH,
+            EVENT_PREVIOUS,
+            EVENT_NEXT,
+            EVENT_FULLSCREEN_V2_CLOSED,
+            EVENT_CONCURRENT_PLAYBACK_CHECK
     })
     @interface VideoEvents {
     }
@@ -140,6 +158,8 @@ class VideoEventEmitter {
     private static final String EVENT_PROP_BITRATE = "bitrate";
 
     private static final String EVENT_PROP_IS_PLAYING = "isPlaying";
+
+    private static final String EVENT_PROP_IS_EXTERNAL_PLAYBACK_ACTIVE = "isExternalPlaybackActive";
 
     void setViewId(int viewId) {
         this.viewId = viewId;
@@ -197,7 +217,7 @@ class VideoEventEmitter {
         event.putInt(EVENT_PROP_HEIGHT, height);
         event.putString(EVENT_PROP_TRACK_ID, id);
         receiveEvent(EVENT_BANDWIDTH, event);
-    }    
+    }
 
     void seek(long currentPosition, long seekTime) {
         WritableMap event = Arguments.createMap();
@@ -210,6 +230,14 @@ class VideoEventEmitter {
         receiveEvent(EVENT_READY, null);
     }
 
+    void previous() {
+        receiveEvent(EVENT_PREVIOUS, null);
+    }
+
+    void next() {
+        receiveEvent(EVENT_NEXT, null);
+    }
+
     void buffering(boolean isBuffering) {
         WritableMap map = Arguments.createMap();
         map.putBoolean(EVENT_PROP_IS_BUFFERING, isBuffering);
@@ -220,6 +248,19 @@ class VideoEventEmitter {
         WritableMap map = Arguments.createMap();
         map.putBoolean(EVENT_PROP_IS_PLAYING, isPlaying);
         receiveEvent(EVENT_PLAYBACK_STATE_CHANGED, map);
+    }
+
+    void externalPlaybackChanged(boolean isExternalPlaybackActive) {
+        WritableMap map = Arguments.createMap();
+        map.putBoolean(EVENT_PROP_IS_EXTERNAL_PLAYBACK_ACTIVE, isExternalPlaybackActive);
+        receiveEvent(EVENT_EXTERNAL_PLAYBACK_CHANGE, map);
+    }
+    void fullscreenV2Closed() {
+      receiveEvent(EVENT_FULLSCREEN_V2_CLOSED, null);
+    }
+
+    void concurrentPlaybackCheck() {
+        receiveEvent(EVENT_CONCURRENT_PLAYBACK_CHECK, null);
     }
 
     void idle() {
@@ -281,7 +322,7 @@ class VideoEventEmitter {
         WritableArray metadataArray = Arguments.createArray();
 
         for (int i = 0; i < metadata.length(); i++) {
-            
+
             Metadata.Entry entry = metadata.get(i);
 
             if (entry instanceof Id3Frame) {
@@ -302,16 +343,16 @@ class VideoEventEmitter {
                 map.putString("value", value);
 
                 metadataArray.pushMap(map);
-                
+
             } else if (entry instanceof EventMessage) {
-                
+
                 EventMessage eventMessage = (EventMessage) entry;
-                
+
                 WritableMap map = Arguments.createMap();
                 map.putString("identifier", eventMessage.schemeIdUri);
                 map.putString("value", eventMessage.value);
                 metadataArray.pushMap(map);
-                
+
             }
         }
 

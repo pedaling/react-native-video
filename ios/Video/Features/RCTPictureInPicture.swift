@@ -4,7 +4,7 @@ import MediaAccessibility
 import React
 import Foundation
 
-#if TARGET_OS_IOS
+#if os(iOS)
 class RCTPictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
     private var _onPictureInPictureStatusChanged: RCTDirectEventBlock?
     private var _onRestoreUserInterfaceForPictureInPictureStop: RCTDirectEventBlock?
@@ -12,7 +12,7 @@ class RCTPictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
     private var _pipController:AVPictureInPictureController?
     private var _isActive:Bool = false
     
-    init(_ onPictureInPictureStatusChanged: @escaping RCTDirectEventBlock, _ onRestoreUserInterfaceForPictureInPictureStop: @escaping RCTDirectEventBlock) {
+    init(_ onPictureInPictureStatusChanged: RCTDirectEventBlock?, _ onRestoreUserInterfaceForPictureInPictureStop: RCTDirectEventBlock?) {
         _onPictureInPictureStatusChanged = onPictureInPictureStatusChanged
         _onRestoreUserInterfaceForPictureInPictureStop = onRestoreUserInterfaceForPictureInPictureStop
     }
@@ -47,10 +47,18 @@ class RCTPictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
     }
     
     func setupPipController(_ playerLayer: AVPlayerLayer?) {
-        guard playerLayer != nil && AVPictureInPictureController.isPictureInPictureSupported() && _isActive else { return }
+        guard playerLayer != nil && AVPictureInPictureController.isPictureInPictureSupported() else { return }
         // Create new controller passing reference to the AVPlayerLayer
         _pipController = AVPictureInPictureController(playerLayer:playerLayer!)
         _pipController?.delegate = self
+        if #available(iOS 14.2, *) {
+            _pipController?.canStartPictureInPictureAutomaticallyFromInline = true
+        }
+    }
+
+    func disposePipController() {
+        _pipController?.delegate = nil;
+        _pipController = nil;
     }
     
     func setPictureInPicture(_ isActive:Bool) {
@@ -58,9 +66,9 @@ class RCTPictureInPicture: NSObject, AVPictureInPictureControllerDelegate {
             return
         }
         _isActive = isActive
-        
+
         guard let _pipController = _pipController else { return }
-        
+
         if _isActive && !_pipController.isPictureInPictureActive {
             DispatchQueue.main.async(execute: {
                 _pipController.startPictureInPicture()
